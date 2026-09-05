@@ -70,23 +70,61 @@ async fn main() -> Result<()> {
 
     // Boot-time oracle gate enforcement (03_ADAPTER_ARCHITECTURE.md)
     let mut market_registry = chains::LendingMarketRegistry::new();
-    let aave_addr: Address = cfg.get_chain("ethereum")
+    let eth_chain_cfg = cfg.get_chain("ethereum");
+    let aave_addr: Address = eth_chain_cfg
         .and_then(|c| c.get_address("aave_v3_pool_proxy"))
         .unwrap_or_default()
         .parse()
         .unwrap_or_default();
-    let morpho_addr: Address = cfg.get_chain("ethereum")
+    let morpho_addr: Address = eth_chain_cfg
         .and_then(|c| c.get_address("morpho_blue"))
         .unwrap_or_default()
         .parse()
         .unwrap_or_default();
+    let spark_addr: Address = eth_chain_cfg
+        .and_then(|c| c.get_address("spark_pool_proxy"))
+        .unwrap_or_default()
+        .parse()
+        .unwrap_or_default();
+    let fluid_addr: Address = eth_chain_cfg
+        .and_then(|c| c.get_address("fluid_liquidity_layer"))
+        .unwrap_or_default()
+        .parse()
+        .unwrap_or_default();
+    let compound_addr: Address = eth_chain_cfg
+        .and_then(|c| c.get_address("compound_v3_comet_proxy"))
+        .unwrap_or_default()
+        .parse()
+        .unwrap_or_default();
+    let euler_addr: Address = eth_chain_cfg
+        .and_then(|c| c.get_address("euler_v2_vault_controller"))
+        .unwrap_or_default()
+        .parse()
+        .unwrap_or_default();
+
     chains::register_lending_market(
         &mut market_registry,
         Box::new(chains::ethereum::aave_v3::EthereumAaveV3Adapter::new(aave_addr, Address::zero())),
     )?;
     chains::register_lending_market(
         &mut market_registry,
+        Box::new(chains::ethereum::spark::SparkAdapter::new(Address::zero(), spark_addr)),
+    )?;
+    chains::register_lending_market(
+        &mut market_registry,
         Box::new(chains::ethereum::morpho_blue::MorphoBlueAdapter::new(morpho_addr)),
+    )?;
+    chains::register_lending_market(
+        &mut market_registry,
+        Box::new(chains::ethereum::fluid::FluidAdapter::new(fluid_addr)),
+    )?;
+    chains::register_lending_market(
+        &mut market_registry,
+        Box::new(chains::ethereum::compound_v3::CompoundV3Adapter::new(compound_addr)),
+    )?;
+    chains::register_lending_market(
+        &mut market_registry,
+        Box::new(chains::ethereum::euler_v2::EulerV2Adapter::new(euler_addr)),
     )?;
     tracing::info!("Registered {} lending markets after SpotAmm validation", market_registry.len());
 

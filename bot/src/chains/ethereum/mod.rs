@@ -190,4 +190,134 @@ mod tests {
         assert!(calldata.is_ok(), "Morpho Blue with valid MarketParams MUST succeed");
         assert!(!calldata.unwrap().is_empty());
     }
+
+    #[tokio::test]
+    async fn test_fluid_adapter_inert_state_and_liquidation() {
+        let adapter = fluid::FluidAdapter::default();
+        assert_eq!(adapter.id(), "fluid");
+        assert_eq!(adapter.oracle_kind(), OracleKind::Chainlink);
+        assert!(!adapter.is_enabled());
+
+        // Inert state: positions_below_hf must return empty vec
+        let at_risk = adapter.positions_below_hf(1.5).await;
+        assert!(at_risk.is_empty());
+
+        let pos = BorrowPosition {
+            borrower: Address::random(),
+            collateral_asset: Address::random(),
+            debt_asset: Address::random(),
+            debt_amount: U256::from(50_000u64),
+            collateral_amount: U256::from(100_000u64),
+            health_factor: 0.85,
+            protocol: LendingProtocol::Aave,
+            morpho_market_params: Bytes::new(),
+            morpho_market_id: TxHash::zero(),
+            last_update_block: 200,
+        };
+
+        let route = SwapRoute {
+            venue_id: "uniswap_v3".into(),
+            path: Bytes::new(),
+            expected_out: U256::from(49_000u64),
+        };
+
+        // Calldata building should fail when disabled
+        let res = adapter.build_liquidation_calldata(&pos, route.clone(), U256::from(100)).await;
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("FLUID_LIQUIDITY_LAYER"));
+
+        // Enabled adapter with configured address
+        let enabled_adapter = fluid::FluidAdapter::new(Address::random());
+        assert!(enabled_adapter.is_enabled());
+        let calldata = enabled_adapter.build_liquidation_calldata(&pos, route, U256::from(100)).await;
+        assert!(calldata.is_ok());
+        assert!(!calldata.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_compound_v3_adapter_inert_state_and_liquidation() {
+        let adapter = compound_v3::CompoundV3Adapter::default();
+        assert_eq!(adapter.id(), "compound_v3");
+        assert_eq!(adapter.oracle_kind(), OracleKind::Chainlink);
+        assert!(!adapter.is_enabled());
+
+        // Inert state: positions_below_hf must return empty vec
+        let at_risk = adapter.positions_below_hf(1.5).await;
+        assert!(at_risk.is_empty());
+
+        let pos = BorrowPosition {
+            borrower: Address::random(),
+            collateral_asset: Address::random(),
+            debt_asset: Address::random(),
+            debt_amount: U256::from(50_000u64),
+            collateral_amount: U256::from(100_000u64),
+            health_factor: 0.80,
+            protocol: LendingProtocol::Aave,
+            morpho_market_params: Bytes::new(),
+            morpho_market_id: TxHash::zero(),
+            last_update_block: 200,
+        };
+
+        let route = SwapRoute {
+            venue_id: "uniswap_v3".into(),
+            path: Bytes::new(),
+            expected_out: U256::from(49_000u64),
+        };
+
+        // Calldata building should fail when disabled
+        let res = adapter.build_liquidation_calldata(&pos, route.clone(), U256::from(100)).await;
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("COMPOUND_V3_COMET"));
+
+        // Enabled adapter with configured address
+        let enabled_adapter = compound_v3::CompoundV3Adapter::new(Address::random());
+        assert!(enabled_adapter.is_enabled());
+        let calldata = enabled_adapter.build_liquidation_calldata(&pos, route, U256::from(100)).await;
+        assert!(calldata.is_ok());
+        assert!(!calldata.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_euler_v2_adapter_inert_state_and_liquidation() {
+        let adapter = euler_v2::EulerV2Adapter::default();
+        assert_eq!(adapter.id(), "euler_v2");
+        assert_eq!(adapter.oracle_kind(), OracleKind::Chainlink);
+        assert!(!adapter.is_enabled());
+
+        // Inert state: positions_below_hf must return empty vec
+        let at_risk = adapter.positions_below_hf(1.5).await;
+        assert!(at_risk.is_empty());
+
+        let pos = BorrowPosition {
+            borrower: Address::random(),
+            collateral_asset: Address::random(),
+            debt_asset: Address::random(),
+            debt_amount: U256::from(50_000u64),
+            collateral_amount: U256::from(100_000u64),
+            health_factor: 0.90,
+            protocol: LendingProtocol::Aave,
+            morpho_market_params: Bytes::new(),
+            morpho_market_id: TxHash::zero(),
+            last_update_block: 200,
+        };
+
+        let route = SwapRoute {
+            venue_id: "uniswap_v3".into(),
+            path: Bytes::new(),
+            expected_out: U256::from(49_000u64),
+        };
+
+        // Calldata building should fail when disabled
+        let res = adapter.build_liquidation_calldata(&pos, route.clone(), U256::from(100)).await;
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("EULER_V2_VAULT_CONTROLLER"));
+
+        // Enabled adapter with configured address
+        let enabled_adapter = euler_v2::EulerV2Adapter::new(Address::random());
+        assert!(enabled_adapter.is_enabled());
+        let calldata = enabled_adapter.build_liquidation_calldata(&pos, route, U256::from(100)).await;
+        assert!(calldata.is_ok());
+        assert!(!calldata.unwrap().is_empty());
+    }
 }
+
