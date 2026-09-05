@@ -21,7 +21,7 @@ use std::sync::Arc;
 use crate::{
     config::Config,
     shared::{
-        addresses::base,
+        addresses::ethereum,
         gas_oracle::GasOracle,
         position_indexer::{BorrowPosition, PriceMap},
         price_feed::PoolState,
@@ -219,13 +219,13 @@ impl SimulationEngine {
             ))?;
         let collateral_hex = format!("{:?}", pos.collateral_asset).to_lowercase();
         let debt_hex       = format!("{:?}", pos.debt_asset).to_lowercase();
-        let coll_dec       = base::token_decimals(&collateral_hex);
-        let debt_dec       = base::token_decimals(&debt_hex);
+        let coll_dec       = ethereum::token_decimals(&collateral_hex);
+        let debt_dec       = ethereum::token_decimals(&debt_hex);
         let debt_unit      = 10f64.powi(debt_dec as i32);
         let coll_unit      = 10f64.powi(coll_dec as i32);
         let debt_usd       = debt_price * pos.debt_amount.as_u128() as f64 / debt_unit;
-        let liq_bonus      = base::aave_liq_bonus(&collateral_hex);
-        let (fallback_haircut, safety_factor) = match self.cfg.get_chain("base") {
+        let liq_bonus      = ethereum::aave_liq_bonus(&collateral_hex);
+        let (fallback_haircut, safety_factor) = match self.cfg.get_chain("ethereum") {
             Some(c) => (c.liquidation_swap_haircut, c.liquidation_safety_factor),
             None => (0.018, 0.9),
         };
@@ -256,7 +256,7 @@ impl SimulationEngine {
         let min_profit_native = net_profit_usd * 0.7 / debt_price * 10f64.powi(debt_dec as i32);
         let min_profit_wei    = U256::from(min_profit_native as u128);
         let coll_usd = coll_price * pos.collateral_amount.as_u128() as f64 / coll_unit;
-        let (_, liq_thresh) = base::aave_ltv_liq_threshold(&collateral_hex);
+        let (_, liq_thresh) = ethereum::aave_ltv_liq_threshold(&collateral_hex);
         let post_hf = if debt_usd > 1e-10 {
             ((coll_usd - debt_usd * (1.0 + liq_bonus)) * liq_thresh) / (debt_usd * 0.5).max(1e-10)
         } else {
@@ -268,7 +268,7 @@ impl SimulationEngine {
 
     /// Estimate realized slippage based on pool reserves and input size
     pub async fn estimate_realized_slippage(&self, collateral: Address, debt: Address, amount_in: U256) -> f64 {
-        let factory: Address = match base::UNISWAP_V3_FACTORY.parse() {
+        let factory: Address = match ethereum::UNISWAP_V3_FACTORY.parse() {
             Ok(a) => a,
             Err(_) => return 0.018,
         };
@@ -286,7 +286,7 @@ impl SimulationEngine {
                 }
             }
         }
-        self.cfg.get_chain("base").map(|c| c.liquidation_swap_haircut).unwrap_or(0.018)
+        self.cfg.get_chain("ethereum").map(|c| c.liquidation_swap_haircut).unwrap_or(0.018)
     }
 
     // ─── get_optimal_swap_route with pool existence check ────
@@ -302,8 +302,8 @@ impl SimulationEngine {
         collateral: Address,
         debt:       Address,
     ) -> Result<Bytes> {
-        let factory: Address = base::UNISWAP_V3_FACTORY.parse()?;
-        let weth:    Address = base::WETH.parse()?;
+        let factory: Address = ethereum::UNISWAP_V3_FACTORY.parse()?;
+        let weth:    Address = ethereum::WETH.parse()?;
 
         // Try direct routes in order of typical liquidity depth on Base
         for &fee in &[500u32, 3000, 100, 10000] {
@@ -359,7 +359,7 @@ impl SimulationEngine {
         zfo:      bool,
         at_block: u64,
     ) -> Result<i32> {
-        let quoter: Address = base::UNISWAP_V3_QUOTER_V2.parse()?;
+        let quoter: Address = ethereum::UNISWAP_V3_QUOTER_V2.parse()?;
         let (token0, token1, fee) = self.get_pool_tokens_and_fee(pool).await?;
         let (token_in, token_out) = if zfo { (token0, token1) } else { (token1, token0) };
         let sel = &ethers::utils::keccak256(b"quoteExactInputSingle((address,address,uint256,uint24,uint160))")[..4];
@@ -450,7 +450,7 @@ impl SimulationEngine {
     // A zero fee inflates profit estimates (missing fee deduction) and a zero-byte path
     // passed to the UniV3 router causes guaranteed-revert calldata.
     async fn fetch_uni_v3_virtual_reserves_with_fee(&self, pool: Address, _token_in: Address) -> Result<(U256, U256, u32, bool)> {
-        let fee_res = self.provider.call(&tx_req(pool, base::SEL_FEE.to_vec()), None)
+        let fee_res = self.provider.call(&tx_req(pool, ethereum::SEL_FEE.to_vec()), None)
             .await
             .map_err(|e| anyhow::anyhow!("fee() call failed for pool {:?}: {}", pool, e))?;
         if fee_res.len() < 32 {
@@ -499,9 +499,9 @@ impl SimulationEngine {
     }
 
     async fn get_pool_tokens_and_fee(&self, pool: Address) -> Result<(Address, Address, u32)> {
-        let t0_res = self.provider.call(&tx_req(pool, base::SEL_TOKEN0.to_vec()), None).await?;
-        let t1_res = self.provider.call(&tx_req(pool, base::SEL_TOKEN1.to_vec()), None).await?;
-        let f_res  = self.provider.call(&tx_req(pool, base::SEL_FEE.to_vec()), None).await?;
+        let t0_res = self.provider.call(&tx_req(pool, ethereum::SEL_TOKEN0.to_vec()), None).await?;
+        let t1_res = self.provider.call(&tx_req(pool, ethereum::SEL_TOKEN1.to_vec()), None).await?;
+        let f_res  = self.provider.call(&tx_req(pool, ethereum::SEL_FEE.to_vec()), None).await?;
         let t0  = Address::from_slice(&t0_res[12..32]);
         let t1  = Address::from_slice(&t1_res[12..32]);
         let fee = U256::from_big_endian(&f_res).as_u32();

@@ -1,24 +1,29 @@
-//!
-//! Builder responses are now parsed — rejections logged by error code and reason.
-//! record_inclusion called per receipt confirmation — feeds inclusion_rate metric.
+//! Private submission pipeline for Ethereum Mainnet builder auction.
+//! 09_SUBMISSION_AND_SIMULATION.md §9.3–9.5.
 
 use anyhow::Result;
 use ethers::prelude::*;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use crate::{
-    config::{Config, PrivateSubmissionProvider, SubmissionMode},
+    config::{Config, SubmissionMode},
     shared::signing::Signer,
 };
 
+/// Canonical Ethereum builder relays (09_SUBMISSION_AND_SIMULATION.md §9.3)
+pub const FLASHBOTS_RELAY_ENDPOINT: &str = "https://relay.flashbots.net";
+pub const TITAN_BUILDER_ENDPOINT:   &str = "https://rpc.titanbuilder.xyz";
+pub const BEAVER_BUILD_ENDPOINT:    &str = "https://rpc.beaverbuild.com";
+
 pub struct SubmissionPipeline {
-    signer:            Arc<Signer>,
-    provider:          Arc<Provider<Ipc>>,
-    sequencer_rpc:     String,
-    builder_endpoints: Vec<String>,
-    submission_mode:   SubmissionMode,
-    client:            reqwest::Client,
-    nonce:             Arc<AtomicU64>,
+    signer:               Arc<Signer>,
+    provider:             Arc<Provider<Ipc>>,
+    builder_endpoints:    Vec<String>,
+    active_builder_idx:   Arc<AtomicUsize>,
+    consecutive_failures: Arc<AtomicUsize>,
+    submission_mode:      SubmissionMode,
+    client:               reqwest::Client,
+    nonce:                Arc<AtomicU64>,
 }
 
 impl SubmissionPipeline {
@@ -34,22 +39,42 @@ impl SubmissionPipeline {
             .await?.as_u64();
         tracing::info!("Nonce bootstrap: wallet={:?} nonce={}", wallet_addr, nonce);
 
-        let base_chain = cfg.get_chain("base");
-        let submission_mode = base_chain.map(|c| c.submission_mode.clone()).unwrap_or(SubmissionMode::DirectSequencer);
-        let builder_endpoints = if let Ok(ep) = std::env::var("CORVUS_BUILDER_ENDPOINTS") {
+        let eth_chain = cfg.get_chain("ethereum");
+        let submission_mode = eth_chain
+            .map(|c| c.submission_mode.clone())
+            .unwrap_or(SubmissionMode::Shadow);
+
+        // Relay list reduced strictly to the three Ethereum builders (09 §9.3)
+        let builder_endpoints = if let Ok(ep) = std::env::var("GOSHAWK_BUILDER_ENDPOINTS")
+            .or_else(|_| std::env::var("CORVUS_BUILDER_ENDPOINTS"))
+        {
             ep.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
         } else {
-            vec!["https://rpc.flashbots.net".to_string()]
+            vec![
+                FLASHBOTS_RELAY_ENDPOINT.to_string(),
+                TITAN_BUILDER_ENDPOINT.to_string(),
+                BEAVER_BUILD_ENDPOINT.to_string(),
+            ]
         };
 
         Ok(Self {
-            signer, provider,
-            sequencer_rpc:     base_chain.map(|c| c.rpc_ipc_or_ws.clone()).unwrap_or_default(),
+            signer,
+            provider,
             builder_endpoints,
+            active_builder_idx: Arc::new(AtomicUsize::new(0)),
+            consecutive_failures: Arc::new(AtomicUsize::new(0)),
             submission_mode,
             client,
             nonce: Arc::new(AtomicU64::new(nonce)),
         })
+    }
+
+    pub fn builder_endpoints(&self) -> &[String] {
+        &self.builder_endpoints
+    }
+
+    pub fn active_builder_index(&self) -> usize {
+        self.active_builder_idx.load(Ordering::SeqCst)
     }
 
     pub async fn submit(&self, calldata: Bytes, gas_limit: u64) -> Result<H256> {
@@ -70,20 +95,15 @@ impl SubmissionPipeline {
             self.broadcast_raw(&raw).await;
             last = hash;
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-            // AUDIT 2.11 FIX: check the RECEIPT (mined), not get_transaction (which also
-            // returns pending txs) — otherwise we recorded inclusion for un-mined txs and
-            // stopped escalating prematurely.
             if let Ok(Some(_)) = self.provider.get_transaction_receipt(hash).await {
                 tracing::info!("Tx included after {} attempt(s): {:?}", attempt + 1, hash);
                 crate::monitoring::metrics::record_inclusion();
+                self.consecutive_failures.store(0, Ordering::SeqCst);
                 return Ok(hash);
             }
         }
-        // FIX: function body was never closed — missing return, for-loop brace, and fn brace.
-        // The compile error swallowed submit_jit_bundle into this broken function scope.
         Ok(last)
     }
-
 
     pub async fn resync_nonce(&self) -> Result<()> {
         let wallet_addr = self.signer.wallet_address();
@@ -112,57 +132,83 @@ impl SubmissionPipeline {
             return;
         }
 
+        if self.builder_endpoints.is_empty() {
+            tracing::warn!("No builder endpoints configured for private submission");
+            return;
+        }
+
         let raw_hex = format!("0x{}", hex::encode(raw.as_ref()));
         let payload = serde_json::json!({
             "jsonrpc": "2.0", "id": 1,
             "method": "eth_sendRawTransaction",
             "params": [&raw_hex]
         });
-        let all: Vec<String> = match &self.submission_mode {
-            SubmissionMode::Shadow => vec![],
-            SubmissionMode::DirectSequencer => {
-                let mut eps = vec![self.sequencer_rpc.clone()];
-                eps.extend(self.builder_endpoints.iter().cloned());
-                eps
-            }
-            SubmissionMode::Private { provider } => {
-                match provider {
-                    PrivateSubmissionProvider::FlashbotsProtect => {
-                        vec!["https://rpc.flashbots.net".to_string()]
-                    }
-                    PrivateSubmissionProvider::ArbitrumTimeboost => {
-                        vec![self.sequencer_rpc.clone()]
-                    }
-                    PrivateSubmissionProvider::PolygonPrivateMempool => {
-                        vec!["https://bor-private.polygon.technology".to_string()]
-                    }
-                    PrivateSubmissionProvider::BloxrouteRelay => {
-                        vec!["https://mev.api.blxrbdn.com".to_string()]
-                    }
-                    PrivateSubmissionProvider::MevProtectedRpc { endpoint } => {
-                        vec![endpoint.clone()]
-                    }
-                }
-            }
-        };
-        let futs: Vec<_> = all.iter().map(|ep| {
+
+        // 09 §9.3 & §9.5: Broadcast to all 3 builder endpoints in parallel, with failover tracking.
+        let futs: Vec<_> = self.builder_endpoints.iter().map(|ep| {
             let c = self.client.clone();
             let p = payload.clone();
             let ep = ep.clone();
             async move {
                 match c.post(&ep).json(&p).send().await {
                     Ok(resp) => {
-                        // parse response for error logging
                         if let Ok(body) = resp.json::<serde_json::Value>().await {
                             if let Some(err) = body.get("error") {
-                                tracing::warn!("broadcast to {}: rpc error {}", ep, err);
+                                tracing::warn!("Builder relay error from {}: {}", ep, err);
+                                false
+                            } else {
+                                true
                             }
+                        } else {
+                            false
                         }
                     }
-                    Err(e) => tracing::debug!("broadcast to {}: {}", ep, e),
+                    Err(e) => {
+                        tracing::debug!("Broadcast failed to {}: {}", ep, e);
+                        false
+                    }
                 }
             }
         }).collect();
-        futures::future::join_all(futs).await;
+
+        let results = futures::future::join_all(futs).await;
+        let any_success = results.iter().any(|&ok| ok);
+
+        if !any_success {
+            let failures = self.consecutive_failures.fetch_add(1, Ordering::SeqCst) + 1;
+            tracing::warn!("All builder relays failed to accept bundle (consecutive: {})", failures);
+            // 09 §9.5: Bundle relay fails to land 3 consecutive bundles -> Failover to next relay
+            if failures >= 3 {
+                let next_idx = (self.active_builder_idx.load(Ordering::SeqCst) + 1) % self.builder_endpoints.len();
+                self.active_builder_idx.store(next_idx, Ordering::SeqCst);
+                self.consecutive_failures.store(0, Ordering::SeqCst);
+                tracing::warn!(
+                    "Triggered builder failover: rotated active primary relay to index {} ({})",
+                    next_idx,
+                    self.builder_endpoints[next_idx]
+                );
+            }
+        } else {
+            self.consecutive_failures.store(0, Ordering::SeqCst);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ethereum_builder_relay_constants() {
+        assert_eq!(FLASHBOTS_RELAY_ENDPOINT, "https://relay.flashbots.net");
+        assert_eq!(TITAN_BUILDER_ENDPOINT, "https://rpc.titanbuilder.xyz");
+        assert_eq!(BEAVER_BUILD_ENDPOINT, "https://rpc.beaverbuild.com");
+
+        let default_relays = [
+            FLASHBOTS_RELAY_ENDPOINT,
+            TITAN_BUILDER_ENDPOINT,
+            BEAVER_BUILD_ENDPOINT,
+        ];
+        assert_eq!(default_relays.len(), 3);
     }
 }

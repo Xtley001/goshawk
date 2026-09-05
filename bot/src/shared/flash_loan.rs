@@ -4,7 +4,7 @@ use anyhow::Result;
 use ethers::{abi::{encode, Token}, prelude::*};
 use std::sync::Arc;
 use crate::config::Config;
-use crate::shared::{addresses::base, position_indexer::BorrowPosition};
+use crate::shared::{addresses::ethereum, position_indexer::BorrowPosition};
 
 const FLASH_PROVIDER_BALANCER:  u8 = 0;
 const FLASH_PROVIDER_MORPHO:    u8 = 1;
@@ -37,11 +37,13 @@ pub struct FlashLoanRouter {
 
 impl FlashLoanRouter {
     pub fn new(provider: Arc<Provider<Ipc>>, cfg: &Config) -> Result<Self> {
-        let base_cfg = cfg.get_chain("base");
-        let balancer_str = base_cfg.and_then(|c| c.get_address("balancer_vault")).unwrap_or_default();
-        let morpho_str = base_cfg.and_then(|c| c.get_address("morpho_blue")).unwrap_or_default();
-        let executor_env = std::env::var("CORVUS_FLASH_EXECUTOR_ADDRESS").unwrap_or_default();
-        let executor_str = base_cfg
+        let eth_cfg = cfg.get_chain("ethereum");
+        let balancer_str = eth_cfg.and_then(|c| c.get_address("balancer_vault")).unwrap_or_default();
+        let morpho_str = eth_cfg.and_then(|c| c.get_address("morpho_blue")).unwrap_or_default();
+        let executor_env = std::env::var("GOSHAWK_FLASH_EXECUTOR_ADDRESS")
+            .or_else(|_| std::env::var("CORVUS_FLASH_EXECUTOR_ADDRESS"))
+            .unwrap_or_default();
+        let executor_str = eth_cfg
             .and_then(|c| c.get_address("flash_executor_address"))
             .filter(|s| !s.is_empty())
             .unwrap_or(if executor_env.is_empty() {
@@ -54,7 +56,7 @@ impl FlashLoanRouter {
             .map_err(|e| anyhow::anyhow!("Invalid balancer_vault '{}': {}", balancer_str, e))?;
         let executor: Address = executor_str.parse()
             .map_err(|e| anyhow::anyhow!(
-                "Invalid flash_executor_address '{}': {}. Set CORVUS_FLASH_EXECUTOR_ADDRESS.",
+                "Invalid flash_executor_address '{}': {}. Set GOSHAWK_FLASH_EXECUTOR_ADDRESS.",
                 executor_str, e
             ))?;
         Ok(Self {
@@ -63,7 +65,7 @@ impl FlashLoanRouter {
             morpho: morpho_str.parse()
                 .map_err(|e| anyhow::anyhow!("Invalid morpho_blue '{}': {}", morpho_str, e))?,
             executor,
-            multicall: base::MULTICALL3.parse()
+            multicall: ethereum::MULTICALL3.parse()
                 .map_err(|e| anyhow::anyhow!("Invalid MULTICALL3 constant: {}", e))?,
         })
     }
@@ -179,7 +181,7 @@ impl FlashLoanRouter {
     ) -> Result<Bytes> {
         use crate::shared::position_indexer::LendingProtocol;
         let protocol_id: u8 = match pos.protocol { LendingProtocol::Morpho => 0, LendingProtocol::Aave => 1 };
-        let uni_router: Address = base::UNISWAP_V3_ROUTER.parse()?;
+        let uni_router: Address = ethereum::UNISWAP_V3_ROUTER.parse()?;
         let strat_data = encode(&[Token::Tuple(vec![
             Token::Uint(U256::from(protocol_id)),
             Token::Address(pos.borrower),
