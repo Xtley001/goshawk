@@ -1,0 +1,45 @@
+# Goshawk MEV engine — systemd unit for bare-metal deployment.
+# Install:
+#   sudo cp deploy/goshawk.service /etc/systemd/system/goshawk.service
+#   sudo mkdir -p /etc/goshawk && sudo cp bot/.env /etc/goshawk/goshawk.env   # your secrets
+#   sudo systemctl daemon-reload && sudo systemctl enable --now goshawk
+#
+# Notes:
+#   • Runs the NATIVE binary (lowest latency) — not a container.
+#   • StateDirectory gives /var/lib/goshawk with goshawk-owned perms for position persistence.
+
+[Unit]
+Description=Goshawk Liquidation MEV Engine (Ethereum Mainnet)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=goshawk
+Group=goshawk
+ExecStart=/usr/local/bin/goshawk
+WorkingDirectory=/opt/goshawk/bot
+EnvironmentFile=/etc/goshawk/goshawk.env
+Environment=RUST_LOG=goshawk=info
+
+Restart=on-failure
+RestartSec=5
+# Give graceful shutdown time to flush open positions before SIGKILL.
+TimeoutStopSec=15
+KillSignal=SIGTERM
+
+# Filesystem / privileges
+PrivateTmp=false
+StateDirectory=goshawk
+StateDirectoryMode=0750
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/goshawk
+
+# Resources
+LimitNOFILE=65536
+Nice=-10
+
+[Install]
+WantedBy=multi-user.target

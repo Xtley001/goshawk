@@ -1,5 +1,5 @@
 //! SecretKey uses zeroize to wipe private key from heap on drop.
-//! Corvus multi-chain configuration schema per 04_CONFIG_SCHEMA.md.
+//! Goshawk configuration schema per 04_CONFIG_SCHEMA.md.
 
 use serde::Deserialize;
 use anyhow::Result;
@@ -175,7 +175,7 @@ impl Config {
         dotenv::dotenv().ok();
         Ok(config::Config::builder()
             .add_source(config::File::with_name("config/default"))
-            .add_source(config::Environment::with_prefix("CORVUS"))
+            .add_source(config::Environment::with_prefix("GOSHAWK"))
             .build()?
             .try_deserialize()?)
     }

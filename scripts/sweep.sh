@@ -3,17 +3,17 @@
 # LOW-07 fix: confirmation prompt before irreversible sweep operation.
 set -euo pipefail
 
-# ── Env validation (accepts GOSHAWK_* with CORVUS_* fallback) ─────────────────
-HOT_WALLET="${GOSHAWK_HOT_WALLET:-${CORVUS_HOT_WALLET:-}}"
-COLD_WALLET="${GOSHAWK_COLD_WALLET:-${CORVUS_COLD_WALLET:-}}"
-FLASH_EXECUTOR="${GOSHAWK_FLASH_EXECUTOR:-${CORVUS_FLASH_EXECUTOR:-}}"
-HOT_PRIVATE_KEY="${GOSHAWK_HOT_PRIVATE_KEY:-${CORVUS_HOT_PRIVATE_KEY:-}}"
-RPC_URL="${ETH_RPC_URL:-${ETHEREUM_RPC_URL:-${BASE_RPC_URL:-}}}"
+# ── Env validation ─────────────────────────────────────────────────────────────
+HOT_WALLET="${GOSHAWK_HOT_WALLET:-}"
+COLD_WALLET="${GOSHAWK_COLD_WALLET:-}"
+FLASH_EXECUTOR="${GOSHAWK_FLASH_EXECUTOR:-}"
+HOT_PRIVATE_KEY="${GOSHAWK_HOT_PRIVATE_KEY:-}"
+RPC_URL="${ETH_RPC_URL:-${ETHEREUM_RPC_URL:-}}"
 
-: "${HOT_WALLET:?GOSHAWK_HOT_WALLET (or CORVUS_HOT_WALLET) env var not set}"
-: "${COLD_WALLET:?GOSHAWK_COLD_WALLET (or CORVUS_COLD_WALLET) env var not set}"
-: "${FLASH_EXECUTOR:?GOSHAWK_FLASH_EXECUTOR (or CORVUS_FLASH_EXECUTOR) env var not set}"
-: "${HOT_PRIVATE_KEY:?GOSHAWK_HOT_PRIVATE_KEY (or CORVUS_HOT_PRIVATE_KEY) env var not set}"
+: "${HOT_WALLET:?GOSHAWK_HOT_WALLET env var not set}"
+: "${COLD_WALLET:?GOSHAWK_COLD_WALLET env var not set}"
+: "${FLASH_EXECUTOR:?GOSHAWK_FLASH_EXECUTOR env var not set}"
+: "${HOT_PRIVATE_KEY:?GOSHAWK_HOT_PRIVATE_KEY env var not set}"
 : "${RPC_URL:?ETH_RPC_URL env var not set}"
 
 TOKEN="${1:-}"

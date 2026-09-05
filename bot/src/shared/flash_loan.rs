@@ -45,7 +45,6 @@ impl FlashLoanRouter {
             .and_then(|c| c.get_address("spark_dss_flash"))
             .unwrap_or(ethereum::SPARK_DSS_FLASH);
         let executor_env = std::env::var("GOSHAWK_FLASH_EXECUTOR_ADDRESS")
-            .or_else(|_| std::env::var("CORVUS_FLASH_EXECUTOR_ADDRESS"))
             .unwrap_or_default();
         let executor_str = eth_cfg
             .and_then(|c| c.get_address("flash_executor_address"))

@@ -1,4 +1,4 @@
-//! Telegram alerting — Corvus v1.0
+//! Telegram alerting — Goshawk v1.0
 //!
 //! F-09 FIX: Implements all 6 mandatory operator alert conditions.
 //! Without real-time Telegram alerts, critical failures (HF drop, gas reserve
@@ -34,8 +34,8 @@ impl TelegramAlerter {
         let enabled = !token.is_empty() && chat_id != 0;
         if !enabled {
             tracing::warn!(
-                "Telegram alerting DISABLED — set CORVUS_TELEGRAM_BOT_TOKEN and \
-                 CORVUS_TELEGRAM_CHAT_ID to enable. You will NOT receive production alerts."
+                "Telegram alerting DISABLED — set GOSHAWK_TELEGRAM_BOT_TOKEN and \
+                 GOSHAWK_TELEGRAM_CHAT_ID to enable. You will NOT receive production alerts."
             );
         }
         Self { client: Client::new(), token, chat_id, enabled }
@@ -75,8 +75,8 @@ impl TelegramAlerter {
 
     pub async fn alert_circuit_breaker(&self, reason: &str) {
         self.send(&format!(
-            "🚨 *CORVUS CIRCUIT BREAKER TRIPPED*\n\
-             Chain: Base Mainnet\n\
+            "🚨 *GOSHAWK CIRCUIT BREAKER TRIPPED*\n\
+             Chain: Ethereum Mainnet\n\
              Reason: `{}`\n\
              All strategies halted. Manual review required.",
             reason
@@ -87,7 +87,7 @@ impl TelegramAlerter {
 
     pub async fn alert_low_health_factor(&self, hf: f64, threshold: f64) {
         self.send(&format!(
-            "⚠️ *CORVUS LOW HEALTH FACTOR*\n\
+            "⚠️ *GOSHAWK LOW HEALTH FACTOR*\n\
              HF: `{:.4}` (threshold: `{:.2}`)\n\
              Rate arb position approaching liquidation zone.\n\
              Emergency unwind may trigger if HF < `{:.2}`.",
@@ -99,7 +99,7 @@ impl TelegramAlerter {
 
     pub async fn alert_low_gas_reserve(&self, balance_eth: f64) {
         self.send(&format!(
-            "⛽ *CORVUS LOW GAS RESERVE*\n\
+            "⛽ *GOSHAWK LOW GAS RESERVE*\n\
              Executor ETH balance: `{:.4} ETH`\n\
              Minimum required: `1.0 ETH`\n\
              Top up immediately or all strategies will halt.",
@@ -111,7 +111,7 @@ impl TelegramAlerter {
 
     pub async fn alert_strategy_panic(&self, strategy: &str, error: &str) {
         self.send(&format!(
-            "💀 *CORVUS STRATEGY PANIC*\n\
+            "💀 *GOSHAWK STRATEGY PANIC*\n\
              Strategy: `{}`\n\
              Error: `{}`\n\
              Task has been restarted. Monitor for recurring failures.",
@@ -123,7 +123,7 @@ impl TelegramAlerter {
 
     pub async fn alert_sim_divergence(&self, strategy: &str, sim_pct: f64, actual_pct: f64) {
         self.send(&format!(
-            "📊 *CORVUS SIM DIVERGENCE ALERT*\n\
+            "📊 *GOSHAWK SIM DIVERGENCE ALERT*\n\
              Strategy: `{}`\n\
              Simulated profit: `{:.4}%`\n\
              Actual on-chain: `{:.4}%`\n\

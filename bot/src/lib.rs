@@ -1,4 +1,4 @@
-//! Corvus liquidation MEV engine library crate.
+//! Goshawk liquidation MEV engine library crate.
 #![allow(dead_code, non_upper_case_globals, unused_imports, unused_variables)]
 
 pub mod config;

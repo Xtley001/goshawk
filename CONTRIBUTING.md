@@ -1,8 +1,8 @@
 # Contributing
 
-*Guidelines for engineering contributions to the Corvus protocol.*
+*Guidelines for engineering contributions to the Goshawk protocol.*
 
-Corvus executes financial transactions with real capital via automated systems. Code quality, correctness, and review discipline take absolute priority over deployment speed.
+Goshawk executes financial transactions with real capital via automated systems. Code quality, correctness, and review discipline take absolute priority over deployment speed.
 
 ## Development Setup
 
@@ -30,7 +30,7 @@ All pull requests must pass the automated CI pipeline before merge:
 |---|---|---|
 | Build | `cargo build --release --locked` | Rust core engine |
 | Lint | `cargo clippy --release --locked -- -D warnings` | Clippy zero-warning enforcement |
-| Unit Tests | `cargo test --release --lib` | 10-chain adapters, math, flash routers |
+| Unit Tests | `cargo test --release --lib` | Ethereum adapters, math, flash routers |
 | Contract Build | `forge build` | `ExecutorBase.sol` and interfaces |
 | Contract Tests | `forge test -vv` | Unit and flash callback tests |
 

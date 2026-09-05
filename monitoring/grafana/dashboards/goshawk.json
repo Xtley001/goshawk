@@ -2,7 +2,7 @@
   "__inputs": [],
   "__requires": [],
   "annotations": { "list": [] },
-  "description": "Corvus MEV System — Base Mainnet",
+  "description": "Goshawk MEV System — Ethereum Mainnet",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -36,7 +36,7 @@
           }
         }
       },
-      "targets": [{ "expr": "increase(corvus_profit_usd_total[24h])", "legendFormat": "24h Profit" }]
+      "targets": [{ "expr": "increase(goshawk_profit_usd_total[24h])", "legendFormat": "24h Profit" }]
     },
     {
       "id": 2,
@@ -55,7 +55,7 @@
           "decimals": 0
         }
       },
-      "targets": [{ "expr": "corvus_trades_total", "legendFormat": "Trades" }]
+      "targets": [{ "expr": "goshawk_trades_total", "legendFormat": "Trades" }]
     },
     {
       "id": 3,
@@ -82,7 +82,7 @@
           }
         }
       },
-      "targets": [{ "expr": "corvus_inclusion_rate", "legendFormat": "Inclusion" }]
+      "targets": [{ "expr": "goshawk_inclusion_rate", "legendFormat": "Inclusion" }]
     },
     {
       "id": 4,
@@ -108,7 +108,7 @@
           }
         }
       },
-      "targets": [{ "expr": "corvus_gas_reserve_eth", "legendFormat": "ETH" }]
+      "targets": [{ "expr": "goshawk_gas_reserve_eth", "legendFormat": "ETH" }]
     },
     {
       "id": 7,
@@ -127,7 +127,7 @@
         }
       },
       "targets": [
-        { "expr": "rate(corvus_profit_usd_total[1h]) * 3600", "legendFormat": "$/hr" }
+        { "expr": "rate(goshawk_profit_usd_total[1h]) * 3600", "legendFormat": "$/hr" }
       ]
     },
     {
@@ -144,7 +144,7 @@
         "defaults": { "unit": "currencyUSD" }
       },
       "targets": [
-        { "expr": "corvus_strategy_profit_usd", "legendFormat": "{{strategy}}" }
+        { "expr": "goshawk_strategy_profit_usd", "legendFormat": "{{strategy}}" }
       ]
     },
     {
@@ -170,7 +170,7 @@
         }
       },
       "targets": [
-        { "expr": "corvus_strategy_profit_usd", "legendFormat": "{{strategy}}" }
+        { "expr": "goshawk_strategy_profit_usd", "legendFormat": "{{strategy}}" }
       ]
     },
     {
@@ -196,7 +196,7 @@
         }
       },
       "targets": [
-        { "expr": "corvus_node_ipc_latency_ms", "legendFormat": "IPC latency" }
+        { "expr": "goshawk_node_ipc_latency_ms", "legendFormat": "IPC latency" }
       ]
     },
     {
@@ -215,19 +215,19 @@
         }
       },
       "targets": [
-        { "expr": "rate(corvus_submissions_total[5m]) * 300", "legendFormat": "Submissions" }
+        { "expr": "rate(goshawk_submissions_total[5m]) * 300", "legendFormat": "Submissions" }
       ]
     }
   ],
   "refresh": "2s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["corvus", "mev", "base"],
+  "tags": ["goshawk", "mev", "ethereum"],
   "templating": { "list": [] },
   "time": { "from": "now-6h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Corvus",
-  "uid": "corvus-main",
+  "title": "Goshawk",
+  "uid": "goshawk",
   "version": 1
 }

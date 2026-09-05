@@ -1,4 +1,4 @@
-//! Mempool monitor — Corvus v1.1
+//! Mempool monitor — Goshawk v1.0
 //!
 //! v1.1 changes:
 //!   - current_oracle_prices() returns Arc<DashMap<...>> — zero-copy clone.

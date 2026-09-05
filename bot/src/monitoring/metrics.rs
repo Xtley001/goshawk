@@ -1,4 +1,4 @@
-//! Metrics server — Corvus v1.1
+//! Metrics server — Goshawk v1.0
 //! Binds to 127.0.0.1 only (strategy data must not be externally accessible).
 //! Registers all Prometheus counters/gauges via once_cell guard (no double-register panic).
 
@@ -8,19 +8,19 @@ use prometheus::{Counter, CounterVec, Gauge, IntCounter, Opts, Registry};
 use axum::{routing::get, Router};
 
 lazy_static! {
-    pub static ref TRADE_COUNT:      IntCounter = IntCounter::new("corvus_trades_total", "Trades executed").unwrap();
-    pub static ref PROFIT_TOTAL:     Counter    = Counter::new("corvus_profit_usd_total", "Total profit USD").unwrap();
-    pub static ref STRATEGY_PROFIT:  CounterVec = CounterVec::new(Opts::new("corvus_strategy_profit_usd", "Profit by strategy"), &["strategy"]).unwrap();
-    pub static ref INCLUSION_RATE:   Gauge      = Gauge::new("corvus_inclusion_rate", "Bundle inclusion rate 0-1").unwrap();
-    pub static ref GAS_RESERVE_ETH:  Gauge      = Gauge::new("corvus_gas_reserve_eth", "ETH gas reserve").unwrap();
-    pub static ref SUBMISSION_COUNT: IntCounter = IntCounter::new("corvus_submissions_total", "Tx submissions").unwrap();
-    pub static ref SIM_REVERTS:      CounterVec = CounterVec::new(Opts::new("corvus_simulations_total", "Simulations by strategy and result"), &["strategy", "result"]).unwrap();
+    pub static ref TRADE_COUNT:      IntCounter = IntCounter::new("goshawk_trades_total", "Trades executed").unwrap();
+    pub static ref PROFIT_TOTAL:     Counter    = Counter::new("goshawk_profit_usd_total", "Total profit USD").unwrap();
+    pub static ref STRATEGY_PROFIT:  CounterVec = CounterVec::new(Opts::new("goshawk_strategy_profit_usd", "Profit by strategy"), &["strategy"]).unwrap();
+    pub static ref INCLUSION_RATE:   Gauge      = Gauge::new("goshawk_inclusion_rate", "Bundle inclusion rate 0-1").unwrap();
+    pub static ref GAS_RESERVE_ETH:  Gauge      = Gauge::new("goshawk_gas_reserve_eth", "ETH gas reserve").unwrap();
+    pub static ref SUBMISSION_COUNT: IntCounter = IntCounter::new("goshawk_submissions_total", "Tx submissions").unwrap();
+    pub static ref SIM_REVERTS:      CounterVec = CounterVec::new(Opts::new("goshawk_simulations_total", "Simulations by strategy and result"), &["strategy", "result"]).unwrap();
     // IPC latency — fed from main block loop on every block
-    pub static ref NODE_IPC_LATENCY: Gauge      = Gauge::new("corvus_node_ipc_latency_ms", "Node IPC round-trip latency ms").unwrap();
-    pub static ref SUB_LATENCY_MS:   Gauge      = Gauge::new("corvus_submission_latency_ms", "Submission pipeline latency p99 ms").unwrap();
+    pub static ref NODE_IPC_LATENCY: Gauge      = Gauge::new("goshawk_node_ipc_latency_ms", "Node IPC round-trip latency ms").unwrap();
+    pub static ref SUB_LATENCY_MS:   Gauge      = Gauge::new("goshawk_submission_latency_ms", "Submission pipeline latency p99 ms").unwrap();
     // tx submission vs on-chain inclusion tracking
-    pub static ref SUBMITTED_TOTAL:  IntCounter = IntCounter::new("corvus_submitted_total", "Total txs broadcast").unwrap();
-    pub static ref INCLUDED_TOTAL:   IntCounter = IntCounter::new("corvus_included_total", "Total txs confirmed on-chain").unwrap();
+    pub static ref SUBMITTED_TOTAL:  IntCounter = IntCounter::new("goshawk_submitted_total", "Total txs broadcast").unwrap();
+    pub static ref INCLUDED_TOTAL:   IntCounter = IntCounter::new("goshawk_included_total", "Total txs confirmed on-chain").unwrap();
 }
 
 static METRICS_INIT: OnceCell<()> = OnceCell::new();

@@ -1,81 +1,69 @@
 # Node Setup
 
-*Production setup guide for self-hosted Base Mainnet IPC node infrastructure.*
+*Production setup guide for self-hosted Ethereum Mainnet (Chain ID 1) IPC node infrastructure.*
 
-This guide details building and provisioning a dedicated `op-geth` and `op-node` instance connected via local Unix Domain Socket (IPC) for sub-millisecond block latency.
+This guide details provisioning a dedicated high-performance Ethereum execution client (Geth) and consensus client (Lighthouse) connected via local Unix Domain Socket (IPC) for sub-millisecond block latency.
 
 ## Prerequisites
 
-- **Operating System:** Ubuntu 22.04 LTS
-- **Hardware:** 8+ cores (3.5+ GHz), 32 GB RAM, 2 TB NVMe SSD, 1 Gbps unmetered network
-- **Dependencies:** Go 1.21+, build-essential, git
-- **L1 Endpoint:** Synced Ethereum Mainnet RPC (self-hosted Geth/Lighthouse or dedicated provider)
+- **Operating System:** Ubuntu 22.04 / 24.04 LTS
+- **Hardware:** 8+ cores (3.5+ GHz), 64 GB RAM, 2+ TB NVMe SSD (PCIe 4.0), 1 Gbps unmetered network
+- **Dependencies:** Go 1.22+, build-essential, git, cmake, curl
 
 ## Installation
 
-### 1. Install Go
+### 1. Build Geth (Execution Client)
 
 ```bash
-wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
-echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc && source ~/.bashrc
-```
-
-### 2. Build op-geth
-
-```bash
-git clone https://github.com/ethereum-optimism/op-geth.git && cd op-geth
+git clone https://github.com/ethereum/go-ethereum.git && cd go-ethereum
 git checkout $(git tag -l 'v*' | sort -V | tail -1)
 make geth
-sudo cp build/bin/geth /usr/local/bin/op-geth
+sudo cp build/bin/geth /usr/local/bin/geth
 cd ..
 ```
 
-### 3. Build op-node
+### 2. Install Lighthouse (Consensus Client)
 
 ```bash
-git clone https://github.com/ethereum-optimism/optimism.git && cd optimism
-git checkout $(git tag -l 'op-node/v*' | sort -V | tail -1)
-make op-node
-sudo cp op-node/bin/op-node /usr/local/bin/op-node
-cd ..
+curl -LO https://github.com/sigp/lighthouse/releases/latest/download/lighthouse-v5.3.0-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf lighthouse-v5.3.0-x86_64-unknown-linux-gnu.tar.gz
+sudo cp lighthouse /usr/local/bin/lighthouse
 ```
 
 ## Configuration
 
-Create the shared JWT secret for engine API authentication:
+Create dedicated directories and engine API JWT secret:
 
 ```bash
-sudo mkdir -p /var/run/base /data/base-geth
-openssl rand -hex 32 | sudo tee /data/base-geth/jwt.txt > /dev/null
-sudo chmod 600 /data/base-geth/jwt.txt
-sudo chown -R ubuntu:ubuntu /data/base-geth /var/run/base
+sudo mkdir -p /var/run/ethereum /data/ethereum-geth /data/ethereum-lighthouse
+openssl rand -hex 32 | sudo tee /data/ethereum-geth/jwt.hex > /dev/null
+sudo chmod 600 /data/ethereum-geth/jwt.hex
+sudo chown -R ubuntu:ubuntu /data/ethereum-geth /data/ethereum-lighthouse /var/run/ethereum
 ```
 
-### Systemd Service: op-geth
+### Systemd Service: Geth
 
-Create `/etc/systemd/system/op-geth.service`:
+Create `/etc/systemd/system/geth.service`:
 
 ```ini
 [Unit]
-Description=op-geth Base Mainnet Execution Client
+Description=Geth Ethereum Mainnet Execution Client
 After=network.target
 
 [Service]
 Type=simple
 User=ubuntu
-ExecStart=/usr/local/bin/op-geth \
-  --datadir=/data/base-geth \
-  --networkid=8453 \
+ExecStart=/usr/local/bin/geth \
+  --datadir=/data/ethereum-geth \
+  --mainnet \
   --http --http.api=eth,net,web3,debug,txpool \
   --http.addr=127.0.0.1 --http.port=8545 \
   --ws --ws.api=eth,net,web3,debug,txpool \
   --ws.addr=127.0.0.1 --ws.port=8546 \
-  --ipcpath=/var/run/base/geth.ipc \
+  --ipcpath=/var/run/ethereum/geth.ipc \
   --authrpc.addr=127.0.0.1 --authrpc.port=8551 \
-  --authrpc.jwtsecret=/data/base-geth/jwt.txt \
+  --authrpc.jwtsecret=/data/ethereum-geth/jwt.hex \
   --syncmode=snap \
-  --gcmode=archive \
   --cache=16384 \
   --metrics --metrics.addr=127.0.0.1 --metrics.port=6060
 Restart=always
@@ -86,26 +74,28 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 ```
 
-### Systemd Service: op-node
+### Systemd Service: Lighthouse
 
-Create `/etc/systemd/system/op-node.service` (replace `L1_RPC_URL` with your Ethereum L1 RPC):
+Create `/etc/systemd/system/lighthouse.service`:
 
 ```ini
 [Unit]
-Description=op-node Base Mainnet Consensus Client
-After=op-geth.service
+Description=Lighthouse Ethereum Mainnet Consensus Client
+After=geth.service
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=ubuntu
-ExecStart=/usr/local/bin/op-node \
-  --network=base-mainnet \
-  --l1=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY \
-  --l1.rpckind=basic \
-  --l2=http://127.0.0.1:8551 \
-  --l2.jwt-secret=/data/base-geth/jwt.txt \
-  --rpc.addr=127.0.0.1 --rpc.port=9545 \
-  --p2p.listen.tcp=9222 --p2p.listen.udp=9222
+ExecStart=/usr/local/bin/lighthouse bn \
+  --network mainnet \
+  --datadir /data/ethereum-lighthouse \
+  --execution-endpoint http://127.0.0.1:8551 \
+  --execution-jwt /data/ethereum-geth/jwt.hex \
+  --checkpoint-sync-url https://mainnet.checkpoint.sigp.io \
+  --http \
+  --http-address 127.0.0.1 \
+  --http-port 5052
 Restart=always
 RestartSec=5
 
@@ -117,13 +107,13 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now op-geth
-sudo systemctl enable --now op-node
+sudo systemctl enable --now geth
+sudo systemctl enable --now lighthouse
 ```
 
 ## Verification
 
-Confirm the execution client is fully synced:
+Confirm execution client is fully synced:
 
 ```bash
 curl -s -X POST -H "Content-Type: application/json" \
@@ -132,3 +122,10 @@ curl -s -X POST -H "Content-Type: application/json" \
 ```
 
 When sync is complete, the response will be `{"jsonrpc":"2.0","id":1,"result":false}`.
+
+Validate block number and chain ID:
+
+```bash
+cast chain-id --rpc-url http://127.0.0.1:8545
+cast block-number --rpc-url http://127.0.0.1:8545
+```

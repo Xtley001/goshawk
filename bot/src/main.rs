@@ -1,5 +1,5 @@
-//! Corvus — Liquidation MEV System
-//! Base Mainnet (Chain ID: 8453)
+//! Goshawk — Liquidation MEV System
+//! Ethereum Mainnet (Chain ID: 1)
 //!
 //! Liquidation-only engine. All non-liquidation strategies (S1, S2, S4, S5, S6, S7) stripped.
 #![allow(dead_code, non_upper_case_globals, unused_imports, unused_variables)]
@@ -55,12 +55,12 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,corvus=debug".into())
+                .unwrap_or_else(|_| "info,goshawk=debug".into())
         )
         .init();
 
     tracing::info!("========================================");
-    tracing::info!("Corvus Liquidation Engine v1.1 starting");
+    tracing::info!("Goshawk Liquidation Engine v1.0 starting");
     tracing::info!("Chain: Ethereum Mainnet (1)");
     tracing::info!("Mode: Liquidation Only");
     tracing::info!("========================================");
@@ -158,7 +158,7 @@ async fn main() -> Result<()> {
         .get_address("aave_v3_pool_proxy")
         .unwrap_or_default()
         .parse()?;
-    let executor_env = std::env::var("CORVUS_FLASH_EXECUTOR_ADDRESS").unwrap_or_default();
+    let executor_env = std::env::var("GOSHAWK_FLASH_EXECUTOR_ADDRESS").unwrap_or_default();
     let flash_executor_str = eth_cfg
         .get_address("flash_executor_address")
         .filter(|s| !s.is_empty())
@@ -375,7 +375,7 @@ async fn main() -> Result<()> {
         }
     }
 
-    tracing::info!("Corvus exited cleanly.");
+    tracing::info!("Goshawk exited cleanly.");
     Ok(())
 }
 

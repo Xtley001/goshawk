@@ -9,29 +9,29 @@
 use std::str::FromStr;
 use ethers::types::{Address, Bytes, TxHash, U256};
 
-use corvus::chains::{LendingMarketAdapter, OracleKind, SwapRoute};
-use corvus::chains::ethereum::aave_v3::EthereumAaveV3Adapter;
-use corvus::chains::ethereum::morpho_blue::MorphoBlueAdapter;
-use corvus::chains::ethereum::spark::SparkAdapter;
-use corvus::chains::ethereum::fluid::FluidAdapter;
-use corvus::chains::ethereum::compound_v3::CompoundV3Adapter;
-use corvus::chains::ethereum::euler_v2::EulerV2Adapter;
+use goshawk::chains::{LendingMarketAdapter, OracleKind, SwapRoute};
+use goshawk::chains::ethereum::aave_v3::EthereumAaveV3Adapter;
+use goshawk::chains::ethereum::morpho_blue::MorphoBlueAdapter;
+use goshawk::chains::ethereum::spark::SparkAdapter;
+use goshawk::chains::ethereum::fluid::FluidAdapter;
+use goshawk::chains::ethereum::compound_v3::CompoundV3Adapter;
+use goshawk::chains::ethereum::euler_v2::EulerV2Adapter;
 
-use corvus::flash::{
+use goshawk::flash::{
     FlashLoanRegistry,
     morpho_blue::MorphoBlueFlashAdapter,
     balancer_v2::BalancerV2FlashAdapter,
     spark_dss_flash::SparkDssFlashAdapter,
     aave_v3::AaveV3FlashAdapter,
 };
-use corvus::swap::{
+use goshawk::swap::{
     SwapVenueRegistry,
     uniswap_v3::GenericUniswapV3Adapter,
     curve::CurveAdapter,
     balancer::BalancerSwapAdapter,
 };
-use corvus::shared::position_indexer::{BorrowPosition, LendingProtocol};
-use corvus::strategies::liquidation::{
+use goshawk::shared::position_indexer::{BorrowPosition, LendingProtocol};
+use goshawk::strategies::liquidation::{
     protocol_break_even_debt_usd, protocol_min_clip_usd
 };
 

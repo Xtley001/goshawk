@@ -45,9 +45,7 @@ impl SubmissionPipeline {
             .unwrap_or(SubmissionMode::Shadow);
 
         // Relay list reduced strictly to the three Ethereum builders (09 §9.3)
-        let builder_endpoints = if let Ok(ep) = std::env::var("GOSHAWK_BUILDER_ENDPOINTS")
-            .or_else(|_| std::env::var("CORVUS_BUILDER_ENDPOINTS"))
-        {
+        let builder_endpoints = if let Ok(ep) = std::env::var("GOSHAWK_BUILDER_ENDPOINTS") {
             ep.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
         } else {
             vec![
