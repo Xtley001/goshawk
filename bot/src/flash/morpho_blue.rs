@@ -7,6 +7,7 @@ use ethers::abi::{encode, Token};
 use ethers::types::{Address, Bytes, U256};
 
 use crate::flash::FlashLoanAdapter;
+use crate::shared::addresses::ethereum;
 
 pub struct MorphoBlueFlashAdapter {
     pub morpho: Address,
@@ -21,7 +22,8 @@ impl MorphoBlueFlashAdapter {
 impl Default for MorphoBlueFlashAdapter {
     fn default() -> Self {
         Self {
-            morpho: "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb".parse().unwrap_or(Address::zero()),
+            // Morpho Blue canonical address on Ethereum mainnet (07 §7.1)
+            morpho: ethereum::MORPHO_BLUE.parse().unwrap_or(Address::zero()),
         }
     }
 }

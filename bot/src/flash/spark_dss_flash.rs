@@ -7,6 +7,7 @@ use ethers::abi::{encode, Token};
 use ethers::types::{Address, Bytes, U256};
 
 use crate::flash::FlashLoanAdapter;
+use crate::shared::addresses::ethereum;
 
 pub struct SparkDssFlashAdapter {
     pub flash_contract: Address,
@@ -21,8 +22,8 @@ impl SparkDssFlashAdapter {
 impl Default for SparkDssFlashAdapter {
     fn default() -> Self {
         Self {
-            // Maker / Spark DSS Flash canonical address on Ethereum mainnet
-            flash_contract: "0x60744434d6339a6B27d73d9Eda62b6F66a0a04FA".parse().unwrap_or(Address::zero()),
+            // Maker / Spark DSS Flash canonical address on Ethereum mainnet (07 §7.1)
+            flash_contract: ethereum::SPARK_DSS_FLASH.parse().unwrap_or(Address::zero()),
         }
     }
 }

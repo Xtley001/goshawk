@@ -7,6 +7,7 @@ use ethers::abi::{encode, Token};
 use ethers::types::{Address, Bytes, U256};
 
 use crate::flash::FlashLoanAdapter;
+use crate::shared::addresses::ethereum;
 
 pub struct AaveV3FlashAdapter {
     pub pool: Address,
@@ -20,7 +21,10 @@ impl AaveV3FlashAdapter {
 
 impl Default for AaveV3FlashAdapter {
     fn default() -> Self {
-        Self { pool: Address::zero() }
+        Self {
+            // Aave V3 Pool Proxy canonical address on Ethereum mainnet (05 §5.1)
+            pool: ethereum::AAVE_V3_POOL_PROXY.parse().unwrap_or(Address::zero()),
+        }
     }
 }
 

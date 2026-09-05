@@ -7,6 +7,7 @@ use ethers::abi::{encode, Token};
 use ethers::types::{Address, Bytes, U256};
 
 use crate::flash::FlashLoanAdapter;
+use crate::shared::addresses::ethereum;
 
 pub struct BalancerV2FlashAdapter {
     pub vault: Address,
@@ -21,7 +22,8 @@ impl BalancerV2FlashAdapter {
 impl Default for BalancerV2FlashAdapter {
     fn default() -> Self {
         Self {
-            vault: "0xBA12222222228d8Ba445958a75a0704d566BF2C8".parse().unwrap_or(Address::zero()),
+            // Balancer V2 Vault canonical address on Ethereum mainnet (07 §7.1)
+            vault: ethereum::BALANCER_VAULT.parse().unwrap_or(Address::zero()),
         }
     }
 }
