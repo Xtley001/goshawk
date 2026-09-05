@@ -18,7 +18,14 @@ use std::sync::Arc;
 pub type PriceMap = DashMap<Address, f64>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum LendingProtocol { Aave, Morpho }
+pub enum LendingProtocol {
+    Morpho,
+    Aave,
+    Spark,
+    Fluid,
+    CompoundV3,
+    EulerV2,
+}
 
 #[derive(Debug, Clone)]
 pub struct BorrowPosition {

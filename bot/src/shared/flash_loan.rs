@@ -6,23 +6,23 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::shared::{addresses::ethereum, position_indexer::BorrowPosition};
 
-const FLASH_PROVIDER_BALANCER:  u8 = 0;
-const FLASH_PROVIDER_MORPHO:    u8 = 1;
-const FLASH_PROVIDER_AAVE:      u8 = 2;
-const FLASH_PROVIDER_HYPERLEND: u8 = 3;
+const FLASH_PROVIDER_MORPHO:    u8 = 0;
+const FLASH_PROVIDER_BALANCER:  u8 = 1;
+const FLASH_PROVIDER_SPARK_DSS: u8 = 2;
+const FLASH_PROVIDER_AAVE:      u8 = 3;
 
 const STRAT_LIQUIDATION: u8 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FlashProvider { Balancer, Morpho, Aave, HyperLend }
+pub enum FlashProvider { Morpho, Balancer, SparkDss, Aave }
 
 impl FlashProvider {
     pub fn as_u8(self) -> u8 {
         match self {
-            FlashProvider::Balancer  => FLASH_PROVIDER_BALANCER,
-            FlashProvider::Morpho    => FLASH_PROVIDER_MORPHO,
-            FlashProvider::Aave      => FLASH_PROVIDER_AAVE,
-            FlashProvider::HyperLend => FLASH_PROVIDER_HYPERLEND,
+            FlashProvider::Morpho   => FLASH_PROVIDER_MORPHO,
+            FlashProvider::Balancer => FLASH_PROVIDER_BALANCER,
+            FlashProvider::SparkDss => FLASH_PROVIDER_SPARK_DSS,
+            FlashProvider::Aave     => FLASH_PROVIDER_AAVE,
         }
     }
 }
@@ -31,6 +31,7 @@ pub struct FlashLoanRouter {
     provider:  Arc<Provider<Ipc>>,
     balancer:  Address,
     morpho:    Address,
+    spark_dss: Address,
     executor:  Address,
     multicall: Address,
 }
@@ -40,6 +41,9 @@ impl FlashLoanRouter {
         let eth_cfg = cfg.get_chain("ethereum");
         let balancer_str = eth_cfg.and_then(|c| c.get_address("balancer_vault")).unwrap_or_default();
         let morpho_str = eth_cfg.and_then(|c| c.get_address("morpho_blue")).unwrap_or_default();
+        let spark_str = eth_cfg
+            .and_then(|c| c.get_address("spark_dss_flash"))
+            .unwrap_or(ethereum::SPARK_DSS_FLASH);
         let executor_env = std::env::var("GOSHAWK_FLASH_EXECUTOR_ADDRESS")
             .or_else(|_| std::env::var("CORVUS_FLASH_EXECUTOR_ADDRESS"))
             .unwrap_or_default();
@@ -64,6 +68,7 @@ impl FlashLoanRouter {
             balancer,
             morpho: morpho_str.parse()
                 .map_err(|e| anyhow::anyhow!("Invalid morpho_blue '{}': {}", morpho_str, e))?,
+            spark_dss: spark_str.parse().unwrap_or_default(),
             executor,
             multicall: ethereum::MULTICALL3.parse()
                 .map_err(|e| anyhow::anyhow!("Invalid MULTICALL3 constant: {}", e))?,
@@ -72,29 +77,38 @@ impl FlashLoanRouter {
 
     /// Live-quoted parallel provider selection:
     /// Queries provider depths and fees, picking the lowest-fee provider
-    /// with sufficient liquidity for the requested amount.
+    /// with sufficient liquidity for the requested amount, following 07 §7.2 order.
     pub async fn select_provider(&self, asset: Address, amount: U256) -> Result<FlashProvider> {
         let (bal_depth, morpho_depth) = self.batch_query_depths(asset).await?;
 
-        // Evaluate candidate providers with live fee quotes
-        let mut candidates: Vec<(FlashProvider, U256, U256)> = Vec::new();
+        // Priority order per 07_FLASH_LOANS_AND_DEX.md §7.2:
+        // 1. Morpho Blue (0.00%)
+        // 2. Balancer V2 (0.00%)
+        // 3. Spark DSS (0.00%)
+        // 4. Aave V3 (0.05%)
+        let mut candidates: Vec<(FlashProvider, U256, U256, usize)> = Vec::new();
 
-        // Balancer: 0 fee, 5% buffer on depth
+        // 1. Morpho: 0 fee, 40% buffer
+        candidates.push((FlashProvider::Morpho, morpho_depth, U256::zero(), 0));
+
+        // 2. Balancer: 0 fee, 5% buffer on depth
         let bal_effective_depth = bal_depth * 95 / 100;
-        candidates.push((FlashProvider::Balancer, bal_effective_depth, U256::zero()));
+        candidates.push((FlashProvider::Balancer, bal_effective_depth, U256::zero(), 1));
 
-        // Morpho: 0 fee, 40% buffer
-        candidates.push((FlashProvider::Morpho, morpho_depth, U256::zero()));
+        // 3. Spark DSS Flash: 0 fee
+        let spark_depth = self.balance_of(asset, self.spark_dss).await.unwrap_or(U256::zero());
+        candidates.push((FlashProvider::SparkDss, spark_depth, U256::zero(), 2));
 
-        // Aave: 5 bps fee, deep standing pool
+        // 4. Aave: 5 bps fee, deep standing pool
         let aave_fee = amount * 5 / 10_000;
-        candidates.push((FlashProvider::Aave, U256::max_value(), aave_fee));
+        candidates.push((FlashProvider::Aave, U256::max_value(), aave_fee, 3));
 
         // Filter for candidates that satisfy the required borrow amount
-        let mut eligible: Vec<_> = candidates.into_iter().filter(|(_, depth, _)| *depth >= amount).collect();
-        eligible.sort_by_key(|(_, _, fee)| *fee);
+        let mut eligible: Vec<_> = candidates.into_iter().filter(|(_, depth, _, _)| *depth >= amount).collect();
+        // Sort by fee ascending, then by §7.2 priority index ascending
+        eligible.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.3.cmp(&b.3)));
 
-        if let Some((best, _, _)) = eligible.first() {
+        if let Some((best, _, _, _)) = eligible.first() {
             Ok(*best)
         } else {
             Ok(FlashProvider::Aave)
@@ -180,7 +194,14 @@ impl FlashLoanRouter {
         min_profit_wei: U256,
     ) -> Result<Bytes> {
         use crate::shared::position_indexer::LendingProtocol;
-        let protocol_id: u8 = match pos.protocol { LendingProtocol::Morpho => 0, LendingProtocol::Aave => 1 };
+        let protocol_id: u8 = match pos.protocol {
+            LendingProtocol::Morpho => 0,
+            LendingProtocol::Aave => 1,
+            LendingProtocol::Spark => 3,
+            LendingProtocol::Fluid => 4,
+            LendingProtocol::CompoundV3 => 5,
+            LendingProtocol::EulerV2 => 6,
+        };
         let uni_router: Address = ethereum::UNISWAP_V3_ROUTER.parse()?;
         let strat_data = encode(&[Token::Tuple(vec![
             Token::Uint(U256::from(protocol_id)),
