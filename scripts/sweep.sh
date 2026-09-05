@@ -1,25 +1,32 @@
 #!/usr/bin/env bash
-# sweep.sh — Corvus profit sweep script
+# sweep.sh — Goshawk profit sweep script (Ethereum Mainnet)
 # LOW-07 fix: confirmation prompt before irreversible sweep operation.
 set -euo pipefail
 
-# ── Env validation ─────────────────────────────────────────────────────────────
-: "${CORVUS_HOT_WALLET:?CORVUS_HOT_WALLET env var not set}"
-: "${CORVUS_COLD_WALLET:?CORVUS_COLD_WALLET env var not set}"
-: "${CORVUS_FLASH_EXECUTOR:?CORVUS_FLASH_EXECUTOR env var not set}"
-: "${BASE_RPC_URL:?BASE_RPC_URL env var not set}"
+# ── Env validation (accepts GOSHAWK_* with CORVUS_* fallback) ─────────────────
+HOT_WALLET="${GOSHAWK_HOT_WALLET:-${CORVUS_HOT_WALLET:-}}"
+COLD_WALLET="${GOSHAWK_COLD_WALLET:-${CORVUS_COLD_WALLET:-}}"
+FLASH_EXECUTOR="${GOSHAWK_FLASH_EXECUTOR:-${CORVUS_FLASH_EXECUTOR:-}}"
+HOT_PRIVATE_KEY="${GOSHAWK_HOT_PRIVATE_KEY:-${CORVUS_HOT_PRIVATE_KEY:-}}"
+RPC_URL="${ETH_RPC_URL:-${ETHEREUM_RPC_URL:-${BASE_RPC_URL:-}}}"
+
+: "${HOT_WALLET:?GOSHAWK_HOT_WALLET (or CORVUS_HOT_WALLET) env var not set}"
+: "${COLD_WALLET:?GOSHAWK_COLD_WALLET (or CORVUS_COLD_WALLET) env var not set}"
+: "${FLASH_EXECUTOR:?GOSHAWK_FLASH_EXECUTOR (or CORVUS_FLASH_EXECUTOR) env var not set}"
+: "${HOT_PRIVATE_KEY:?GOSHAWK_HOT_PRIVATE_KEY (or CORVUS_HOT_PRIVATE_KEY) env var not set}"
+: "${RPC_URL:?ETH_RPC_URL env var not set}"
 
 TOKEN="${1:-}"
 if [[ -z "$TOKEN" ]]; then
     echo "Usage: $0 <TOKEN_ADDRESS>"
-    echo "Example: $0 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913   # USDC"
+    echo "Example: $0 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48   # USDC (Ethereum Mainnet)"
     exit 1
 fi
 
 # ── Query balance ──────────────────────────────────────────────────────────────
-echo "Querying balance of $TOKEN at $CORVUS_FLASH_EXECUTOR..."
-BALANCE=$(cast call "$TOKEN" "balanceOf(address)(uint256)" "$CORVUS_FLASH_EXECUTOR" \
-    --rpc-url "$BASE_RPC_URL" 2>/dev/null || echo "0")
+echo "Querying balance of $TOKEN at $FLASH_EXECUTOR..."
+BALANCE=$(cast call "$TOKEN" "balanceOf(address)(uint256)" "$FLASH_EXECUTOR" \
+    --rpc-url "$RPC_URL" 2>/dev/null || echo "0")
 
 if [[ "$BALANCE" == "0" || -z "$BALANCE" ]]; then
     echo "Balance is zero. Nothing to sweep."
@@ -29,14 +36,14 @@ fi
 # ── LOW-07: Confirmation prompt — prevents fat-finger sweeps ──────────────────
 echo ""
 echo "┌─────────────────────────────────────────────────────────────┐"
-echo "│  SWEEP CONFIRMATION                                         │"
+echo "│  GOSHAWK SWEEP CONFIRMATION (Ethereum Mainnet)             │"
 echo "│                                                             │"
 printf "│  Token:    %-48s│\n" "$TOKEN"
 printf "│  Balance:  %-48s│\n" "$BALANCE (raw)"
-printf "│  From:     %-48s│\n" "$CORVUS_FLASH_EXECUTOR"
-printf "│  To:       %-48s│\n" "$CORVUS_COLD_WALLET"
+printf "│  From:     %-48s│\n" "$FLASH_EXECUTOR"
+printf "│  To:       %-48s│\n" "$COLD_WALLET"
 echo "│                                                             │"
-echo "│  ⚠  This action is IRREVERSIBLE on-chain.                  │"
+echo "│  ⚠  This action is IRREVERSIBLE on Ethereum mainnet.       │"
 echo "└─────────────────────────────────────────────────────────────┘"
 echo ""
 read -r -p "Confirm sweep? [y/N] " CONFIRM
@@ -57,11 +64,11 @@ if (( BALANCE > 10_000_000_000 )); then   # >$10K if USDC (6 dec)
 fi
 
 # ── Execute sweep via cast send ────────────────────────────────────────────────
-echo "Submitting sweep transaction..."
-TX_HASH=$(cast send "$CORVUS_FLASH_EXECUTOR" \
-    "sweep(address,address)" "$TOKEN" "$CORVUS_COLD_WALLET" \
-    --private-key "$CORVUS_HOT_PRIVATE_KEY" \
-    --rpc-url "$BASE_RPC_URL" \
+echo "Submitting sweep transaction to Ethereum Mainnet..."
+TX_HASH=$(cast send "$FLASH_EXECUTOR" \
+    "sweep(address,address)" "$TOKEN" "$COLD_WALLET" \
+    --private-key "$HOT_PRIVATE_KEY" \
+    --rpc-url "$RPC_URL" \
     --json 2>&1 | jq -r '.transactionHash // empty')
 
 if [[ -z "$TX_HASH" ]]; then
@@ -71,10 +78,10 @@ fi
 
 echo ""
 echo "✓  Sweep submitted: $TX_HASH"
-echo "   Track: https://basescan.org/tx/$TX_HASH"
+echo "   Track: https://etherscan.io/tx/$TX_HASH"
 
 # ── Wait for confirmation ──────────────────────────────────────────────────────
 echo "Waiting for confirmation..."
-cast receipt "$TX_HASH" --rpc-url "$BASE_RPC_URL" --confirmations 3 > /dev/null 2>&1 \
+cast receipt "$TX_HASH" --rpc-url "$RPC_URL" --confirmations 3 > /dev/null 2>&1 \
     && echo "✓  Confirmed (3 blocks)" \
-    || echo "⚠  Could not confirm — check basescan manually"
+    || echo "⚠  Could not confirm — check etherscan.io manually"
