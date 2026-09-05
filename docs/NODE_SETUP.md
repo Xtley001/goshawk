@@ -1,12 +1,12 @@
 # Node Setup
 
-*Production setup guide for self-hosted Ethereum Mainnet (Chain ID 1) IPC node infrastructure.*
+Production setup guide for Ethereum Mainnet (Chain ID 1) IPC node infrastructure.
 
 This guide details provisioning a dedicated high-performance Ethereum execution client (Geth) and consensus client (Lighthouse) connected via local Unix Domain Socket (IPC) for sub-millisecond block latency.
 
 ## Prerequisites
 
-- **Operating System:** Ubuntu 22.04 / 24.04 LTS
+- **Operating System:** Ubuntu 22.04 or 24.04 LTS
 - **Hardware:** 8+ cores (3.5+ GHz), 64 GB RAM, 2+ TB NVMe SSD (PCIe 4.0), 1 Gbps unmetered network
 - **Dependencies:** Go 1.22+, build-essential, git, cmake, curl
 
@@ -121,7 +121,7 @@ curl -s -X POST -H "Content-Type: application/json" \
   http://127.0.0.1:8545
 ```
 
-When sync is complete, the response will be `{"jsonrpc":"2.0","id":1,"result":false}`.
+When sync is complete, the response is `{"jsonrpc":"2.0","id":1,"result":false}`.
 
 Validate block number and chain ID:
 

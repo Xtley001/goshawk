@@ -1,8 +1,8 @@
 # Contributing
 
-*Guidelines for engineering contributions to the Goshawk protocol.*
+Guidelines for engineering contributions to the Goshawk engine.
 
-Goshawk executes financial transactions with real capital via automated systems. Code quality, correctness, and review discipline take absolute priority over deployment speed.
+Goshawk executes uncollateralized financial transactions with live capital on Ethereum Mainnet. Code quality, formal correctness, and deterministic test coverage take priority over deployment speed.
 
 ## Development Setup
 
@@ -10,9 +10,9 @@ Goshawk executes financial transactions with real capital via automated systems.
 
 - **Rust:** Stable 1.77+ (`rustup update stable`)
 - **Foundry:** Latest release (`foundryup`)
-- **Node.js:** 18+ (for contract linting and tooling)
+- **Bash:** 4.0+ (for verification and operational scripts)
 
-### Building the Project
+### Building
 
 ```bash
 # Build Rust engine
@@ -28,22 +28,24 @@ All pull requests must pass the automated CI pipeline before merge:
 
 | Gate | Command | Scope |
 |---|---|---|
-| Build | `cargo build --release --locked` | Rust core engine |
-| Lint | `cargo clippy --release --locked -- -D warnings` | Clippy zero-warning enforcement |
-| Unit Tests | `cargo test --release --lib` | Ethereum adapters, math, flash routers |
-| Contract Build | `forge build` | `ExecutorBase.sol` and interfaces |
-| Contract Tests | `forge test -vv` | Unit and flash callback tests |
+| Engine Build | `cargo build --release --locked` | Rust core engine |
+| Engine Unit Tests | `cargo test --release --lib` | Adapters, economics, math |
+| Integration Tests | `cargo test --test integration` | Full adapter & registry validation |
+| Contract Build | `forge build` | `FlashExecutor.sol` and interfaces |
+| Contract Tests | `forge test -vv` | Callback invariants and solvency tests |
 
 ## Contribution Guidelines
 
-- **No Public Vulnerabilities:** Never report security bugs in public issues or PRs. Follow [SECURITY.md](./SECURITY.md).
-- **Zero Spot AMM Oracles:** Never register an adapter utilizing `OracleKind::SpotAmm`. Liquidation eligibility must never rely on same-block manipulable prices.
-- **Contract Changes:** Any modification to `ExecutorBase.sol` requires a corresponding Foundry test asserting that post-trade solvency is preserved and profits sweep to `coldWallet`.
-- **Commit Messages:** Follow the Conventional Commits specification (e.g. `feat(chains): add Plasma adapter`, `fix(gas): correct 75th percentile tip indexing`).
+- **Zero Spot AMM Oracles:** Never register an adapter utilizing `OracleKind::SpotAmm`. All liquidation evaluation must consume tamper-resistant Chainlink feeds.
+- **Zero Address Fabrication:** Never invent, guess, or copy unverified contract addresses. Any unsourced contract must remain an explicit gap until confirmed against live on-chain bytecode via `scripts/verify_addresses.sh`.
+- **Dual Independent Gates:** Any adjustment to liquidation evaluation must preserve the independence of Gate 1 (profit hurdle) and Gate 2 (debt hurdle). Clearing one gate must never waive the other.
+- **Contract Solvency:** Any modification to `ExecutorBase.sol` or `FlashExecutor.sol` requires a corresponding Foundry test asserting that post-trade solvency is preserved and profits sweep to `coldWallet`.
+- **Commit Messages:** Follow the Conventional Commits specification (e.g. `feat(chains): add verified Spark pool proxy`, `fix(gas): correct priority fee multiplier`).
 
 ## Pull Request Process
 
-1. Fork the repository and create a branch from `master`.
+1. Fork the repository and create a feature branch from `master`.
 2. Ensure all quality gates pass locally.
-3. Submit a pull request detailing the problem, technical implementation, and verification steps performed.
-4. Obtain review approval from at least one core maintainer before merge.
+3. Verify that `scripts/verify_addresses.sh` passes against an Ethereum RPC if addresses or oracles were modified.
+4. Submit a pull request detailing the changes, risk assessment, and verification output.
+5. Obtain approval from at least one core maintainer before merge.

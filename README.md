@@ -1,13 +1,13 @@
-# Goshawk
+# goshawk
 
-*Autonomous Ethereum Mainnet protocol liquidation engine with dynamic risk modeling and private builder submission.*
+Autonomous Ethereum Mainnet liquidation engine with dynamic risk modeling and private builder submission.
 
-[![CI](https://img.shields.io/github/actions/workflow/status/Xtley001/goshawk/ci.yml?branch=main)](https://github.com/Xtley001/goshawk/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/Xtley001/goshawk/ci.yml?branch=master)](https://github.com/Xtley001/goshawk/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Rust](https://img.shields.io/badge/rust-1.77+-orange.svg)](https://www.rust-lang.org)
-[![Solidity](https://img.shields.io/badge/solidity-0.8.24-363636.svg)](https://soliditylang.org)
+[![Rust: 1.77+](https://img.shields.io/badge/rust-1.77+-orange.svg)](https://www.rust-lang.org)
+[![Solidity: 0.8.24](https://img.shields.io/badge/solidity-0.8.24-363636.svg)](https://soliditylang.org)
 
-Goshawk monitors decentralized lending markets across Ethereum Mainnet (Chain ID 1) to execute atomic, uncollateralized liquidations via flash loans. Transactions dynamically calculate profit hurdles from live gas feeds, compute swap slippage from AMM reserves, enforce dual independent economic gates, and route through private Ethereum builder relays to eliminate front-running. For the complete protocol specification and formal proofs, see the [whitepaper](./docs/whitepaper.md).
+Goshawk monitors decentralized lending protocols on Ethereum Mainnet (Chain ID 1) to execute atomic, uncollateralized liquidations via flash loans. The engine dynamically computes gas hurdles and AMM slippage per block, enforces dual independent economic gates, and routes transactions exclusively through private builder auctions to eliminate front-running. For the formal protocol specification and mathematical proofs, see the [whitepaper](./docs/whitepaper.md).
 
 ## Installation
 
@@ -21,69 +21,78 @@ cd ../contracts && forge build
 
 ## Quickstart
 
-1. Configure runtime environment:
+Configure environment variables and start the engine:
 
 ```bash
 cp bot/.env.example bot/.env
-# Populate OWNER_ADDRESS, EXECUTOR_PRIVATE_KEY, and COLD_WALLET_ADDRESS
-```
+# Configure GOSHAWK_HOT_PRIVATE_KEY, GOSHAWK_COLD_WALLET, and ETH_RPC_URL
 
-2. Run the engine against your configured node:
-
-```bash
 cd bot && cargo run --release --bin goshawk
 ```
 
-For setting up a dedicated high-throughput execution client, see [Node Setup](./docs/NODE_SETUP.md).
+For provisioning a dedicated local execution client with sub-millisecond IPC latency, see [Node Setup](./docs/NODE_SETUP.md).
 
 ## Architecture
 
 ```
 goshawk/
 ├── bot/
-│   ├── config/             # Ethereum TOML configuration
+│   ├── config/             # Ethereum TOML runtime configuration
 │   └── src/
-│       ├── chains/         # Market adapters & registry (Ethereum Mainnet)
-│       ├── flash/          # Morpho Blue, Balancer V2, Spark DSS, Aave V3 flash adapters
-│       ├── swap/           # AMM venue adapters (Uniswap V3, Curve, Balancer)
-│       ├── shared/         # REVM engine, gas oracle, mempool monitor
-│       └── strategies/     # Dynamic liquidation dispatch & sizing
-├── contracts/              # Unified ExecutorBase flash engine (Foundry)
-├── monitoring/             # Prometheus & Grafana telemetry
-├── docs/                   # Extended docs, node setup, and whitepaper
-└── scripts/                # Verification and deployment utilities
+│       ├── chains/         # Lending market adapters (Aave, Morpho, Spark, Fluid, Compound, Euler)
+│       ├── flash/          # Flash loan adapters (Morpho, Balancer, Spark DSS, Aave)
+│       ├── swap/           # DEX execution venues (Uniswap V3, Curve, Balancer)
+│       ├── shared/         # REVM simulation, gas oracle, mempool monitor
+│       └── strategies/     # Liquidation dispatch and dual-gate sizing
+├── contracts/              # FlashExecutor and ExecutorBase contracts (Foundry)
+├── monitoring/             # Prometheus metrics and Grafana dashboards
+├── scripts/                # Deployment, verification, and sweep scripts
+└── docs/                   # System architecture, node setup, and whitepaper
 ```
 
-For complete system design, adapter traits, and data flows, see [Architecture](./docs/ARCHITECTURE.md).
+For detailed system topology, adapter traits, and invariant specifications, see [Architecture](./docs/ARCHITECTURE.md).
 
-## Supported Networks
+## Protocols and Deployed Contracts
 
-| Network | Chain ID | Lending Markets | Flash Providers | Submission Mode |
-|---|---|---|---|---|
-| Ethereum Mainnet | 1 | Aave V3, Morpho Blue, Spark, Fluid, Compound V3, Euler V2 | Morpho Blue, Balancer V2, Spark DSS Flash, Aave V3 | Private (Flashbots, Titan, Beaver) |
+| Protocol | Type | Contract Address | Status |
+|---|---|---|---|
+| Aave V3 | Lending Pool Proxy | `0x794a61358D6845594F94dc1DB02A252b5b4814aD` | Active |
+| Morpho Blue | Lending & Flash Core | `0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb` | Active |
+| Balancer V2 | Flash Vault | `0xBA12222222228d8Ba53be47888D16304ca09907c` | Active |
+| Spark DSS Flash | Flash Mint (ERC-3156) | `0x60744434d6339a6B27d73d9Eda62b6F66a0a04FA` | Active |
+| Spark SparkLend | Lending Pool Proxy | `Unverified Gap` | Disabled (Pending Verification) |
+| Fluid | Liquidity Layer | `Unverified Gap` | Disabled (Pending Verification) |
+| Compound V3 | Comet Proxy | `Unverified Gap` | Disabled (Pending Verification) |
+| Euler V2 | Vault Controller | `Unverified Gap` | Disabled (Pending Verification) |
+
+Verify all addresses and oracle aggregators against a live RPC node using:
+
+```bash
+ETH_RPC_URL=http://127.0.0.1:8545 ./scripts/verify_addresses.sh
+```
 
 ## Testing
 
 Run unit and integration test suites:
 
 ```bash
-# Test Rust engine & chain adapters
+# Run Rust unit tests
 cd bot && cargo test --release --lib
 
-# Run integration tests
+# Run integration tests (adapters, registries, dual gates)
 cd bot && cargo test --test integration
 
-# Run contract tests
+# Run Foundry contract tests
 cd ../contracts && forge test -vv
 ```
 
 ## Security
 
-All transactions execute through the non-reentrant `ExecutorBase` contract with strict protocol whitelists and atomic solvency checks. Report vulnerabilities per our [security policy](./SECURITY.md).
+All liquidation calls execute through `FlashExecutor.sol`, enforcing strict protocol whitelists, caller authorization, and atomic solvency checks. Net realized profits sweep directly to an immutable cold wallet. Report vulnerabilities per our [security policy](./SECURITY.md).
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development environment setup and pull request guidelines.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for environment setup and pull request guidelines.
 
 ## License
 
