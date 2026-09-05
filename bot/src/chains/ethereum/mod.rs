@@ -1,0 +1,111 @@
+//! Ethereum (Chain ID 1) adapter module.
+//! 08_CHAIN_ETHEREUM.md
+
+pub mod spark;
+pub mod aave_v3;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::chains::{LendingMarketAdapter, OracleKind, SwapRoute};
+    use crate::shared::position_indexer::{BorrowPosition, LendingProtocol};
+    use ethers::types::{Address, Bytes, TxHash, U256};
+    use std::str::FromStr;
+
+    #[tokio::test]
+    async fn test_spark_adapter() {
+        let adapter = spark::SparkAdapter::new(Address::random(), Address::random());
+        assert_eq!(adapter.id(), "spark");
+        assert_eq!(adapter.oracle_kind(), OracleKind::Chainlink);
+
+        let pos = BorrowPosition {
+            borrower: Address::random(),
+            collateral_asset: Address::random(),
+            debt_asset: Address::random(),
+            debt_amount: U256::from(50_000u64),
+            collateral_amount: U256::from(100_000u64),
+            health_factor: 1.01,
+            protocol: LendingProtocol::Aave,
+            morpho_market_params: Bytes::new(),
+            morpho_market_id: TxHash::zero(),
+            last_update_block: 200,
+        };
+
+        adapter.set_positions(vec![pos.clone()]);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let at_risk = adapter.positions_below_hf(1.03).await;
+        assert_eq!(at_risk.len(), 1);
+
+        let route = SwapRoute {
+            venue_id: "curve".into(),
+            path: Bytes::new(),
+            expected_out: U256::from(49_000u64),
+        };
+        let cd = adapter.build_liquidation_calldata(&pos, route, U256::from(500)).await;
+        assert!(cd.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_ethereum_aave_v3_svr_exclusion() {
+        let adapter = aave_v3::EthereumAaveV3Adapter::new(Address::random(), Address::random());
+        assert_eq!(adapter.id(), "aave_v3_ethereum");
+        assert_eq!(adapter.oracle_kind(), OracleKind::Chainlink);
+
+        // tBTC address on mainnet
+        let tbtc = Address::from_str("0x18084fbA666a33d37592fA2633fD49a74DD93a88").unwrap();
+        // AAVE token on mainnet
+        let aave = Address::from_str("0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9").unwrap();
+        let regular_asset = Address::random();
+        let usdc = Address::random();
+
+        assert!(adapter.is_svr_excluded(tbtc, usdc));
+        assert!(adapter.is_svr_excluded(regular_asset, aave));
+        assert!(!adapter.is_svr_excluded(regular_asset, usdc));
+
+        let pos_svr = BorrowPosition {
+            borrower: Address::random(),
+            collateral_asset: tbtc, // SVR asset!
+            debt_asset: usdc,
+            debt_amount: U256::from(50_000u64),
+            collateral_amount: U256::from(100_000u64),
+            health_factor: 1.01,
+            protocol: LendingProtocol::Aave,
+            morpho_market_params: Bytes::new(),
+            morpho_market_id: TxHash::zero(),
+            last_update_block: 200,
+        };
+
+        let pos_ok = BorrowPosition {
+            borrower: Address::random(),
+            collateral_asset: regular_asset,
+            debt_asset: usdc,
+            debt_amount: U256::from(50_000u64),
+            collateral_amount: U256::from(100_000u64),
+            health_factor: 1.01,
+            protocol: LendingProtocol::Aave,
+            morpho_market_params: Bytes::new(),
+            morpho_market_id: TxHash::zero(),
+            last_update_block: 200,
+        };
+
+        adapter.set_positions(vec![pos_svr.clone(), pos_ok.clone()]);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        // The SVR-gated position MUST be filtered out completely
+        let candidates = adapter.positions_below_hf(1.03).await;
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].borrower, pos_ok.borrower);
+
+        let route = SwapRoute {
+            venue_id: "uniswap_v3".into(),
+            path: Bytes::new(),
+            expected_out: U256::from(49_000u64),
+        };
+
+        // Building calldata for SVR position must fail
+        assert!(adapter.build_liquidation_calldata(&pos_svr, route.clone(), U256::from(100)).await.is_err());
+        // Building calldata for regular position must succeed
+        assert!(adapter.build_liquidation_calldata(&pos_ok, route, U256::from(100)).await.is_ok());
+    }
+}

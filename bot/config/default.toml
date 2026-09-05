@@ -1,0 +1,252 @@
+# Corvus — global config
+cold_wallet             = ""
+telegram_bot_token      = ""
+telegram_chat_id        = 0
+metrics_port            = 9090
+rpc_timeout_secs        = 3
+revm_sim_gas_limit      = 5_000_000
+gas_estimate_safety_margin = 1.15
+monitoring_gas_check_interval_blocks = 100
+priority_fee_multiplier = 0.10
+max_fee_base_multiplier = 2.0
+min_profit_slippage_bps = 8000
+
+# ─────────────────────────────────────────────────────────────────────────
+[[chains]]
+id                          = "hyperevm"
+chain_id                    = 999
+rpc_ipc_or_ws               = ""
+submission_mode             = "shadow"          # HyperLend adapter is a fresh
+                                                  # port — earns direct_sequencer
+                                                  # only after 12_TEST_AND_ROLLOUT.md's bar clears
+lending_markets              = ["hyperlend"]
+flash_priority                = ["hyperlend_native"]
+swap_venues                   = ["hyperswap_v2"]
+hf_gate.kind                  = "staged"
+hf_gate.presimulate           = 1.10
+hf_gate.submit                = 1.05
+hf_gate.liquidatable          = 1.00
+min_liquidation_profit_usd    = 25.0             # tune from shadow-mode data
+liquidation_swap_haircut      = 0.018
+liquidation_safety_factor     = 0.9
+bootstrap_from_block          = 0
+native_price_fallback_usd     = 25.0             # HYPE fallback — verify against live
+circuit_breaker_threshold     = 25
+
+[chains.addresses]
+hyperlend_pool = ""
+
+# ─────────────────────────────────────────────────────────────────────────
+[[chains]]
+id                          = "base"
+chain_id                    = 8453
+rpc_ipc_or_ws               = "/tmp/base-geth.ipc"
+submission_mode             = { private = { provider = { mev_protected_rpc = { endpoint = "https://base-mainnet.g.alchemy.com/v2/mev-protected" } } } }
+lending_markets              = ["aave_v3", "morpho_blue"]
+flash_priority                = ["balancer_v3", "balancer_v2", "morpho_blue", "aave_v3"]
+swap_venues                   = ["uniswap_v3", "aerodrome"]
+hf_gate.kind                  = "flat"
+hf_gate.threshold             = 1.03
+min_liquidation_profit_usd    = 50.0
+liquidation_swap_haircut      = 0.018
+liquidation_safety_factor     = 0.9
+bootstrap_from_block          = 2_100_000
+native_price_fallback_usd     = 2500.0
+circuit_breaker_threshold     = 25
+volatility_window_blocks      = 50
+volatility_scale              = 1.5
+max_hf_widening               = 0.05
+opportunity_cost_usd          = 15.0
+
+[chains.addresses]
+balancer_vault           = "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+morpho_blue               = "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb"
+aave_addresses_provider   = "0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D"
+aerodrome_factory         = "0x420DD381b31aEf6683db6B902084cB0FFECe40Da"
+uniswap_v3_factory        = "0x33128a8fC17869897dcE68Ed026d694621f6FDfD"
+
+# ─────────────────────────────────────────────────────────────────────────
+[[chains]]
+id                          = "arbitrum"
+chain_id                    = 42161
+rpc_ipc_or_ws               = ""
+submission_mode             = "shadow"
+lending_markets              = ["aave_v3"]
+flash_priority                = ["aave_v3"]
+swap_venues                   = ["curve", "uniswap_v3"]
+hf_gate.kind                  = "flat"
+hf_gate.threshold             = 1.03
+min_liquidation_profit_usd    = 75.0
+liquidation_swap_haircut      = 0.018
+liquidation_safety_factor     = 0.9
+bootstrap_from_block          = 0
+native_price_fallback_usd     = 2500.0
+circuit_breaker_threshold     = 25
+
+[chains.addresses]
+aave_addresses_provider = ""
+
+# ─────────────────────────────────────────────────────────────────────────
+[[chains]]
+id                          = "ethereum"
+chain_id                    = 1
+rpc_ipc_or_ws               = ""
+submission_mode             = "shadow"           # private_builder only after
+                                                  # relay integration is live-tested
+lending_markets              = ["aave_v3", "spark", "morpho_blue"]
+flash_priority                = ["balancer_v2", "morpho_blue", "aave_v3"]
+swap_venues                   = ["curve", "uniswap_v3", "balancer"]
+hf_gate.kind                  = "flat"
+hf_gate.threshold             = 1.03
+min_liquidation_profit_usd    = 750.0            # scale/tail-event gate — do
+                                                  # not launch at Base's floor
+liquidation_swap_haircut      = 0.02
+liquidation_safety_factor     = 0.9
+bootstrap_from_block          = 0
+native_price_fallback_usd     = 2500.0
+circuit_breaker_threshold     = 10                # tighter than the $50-floor
+                                                  # chains — a mainnet revert
+                                                  # is materially more expensive
+
+[chains.addresses]
+balancer_vault           = ""
+morpho_blue               = ""
+aave_addresses_provider   = ""
+spark_addresses_provider  = ""
+
+# ─────────────────────────────────────────────────────────────────────────
+[[chains]]
+id                          = "optimism"
+chain_id                    = 10
+rpc_ipc_or_ws               = ""
+submission_mode             = "shadow"
+lending_markets              = ["aave_v3"]
+flash_priority                = ["aave_v3"]
+swap_venues                   = ["velodrome", "uniswap_v3"]
+hf_gate.kind                  = "flat"
+hf_gate.threshold             = 1.03
+min_liquidation_profit_usd    = 50.0
+liquidation_swap_haircut      = 0.018
+liquidation_safety_factor     = 0.9
+bootstrap_from_block          = 0
+native_price_fallback_usd     = 2500.0
+circuit_breaker_threshold     = 25
+
+[chains.addresses]
+aave_addresses_provider = ""
+
+# ─────────────────────────────────────────────────────────────────────────
+[[chains]]
+id                          = "polygon"
+chain_id                    = 137
+rpc_ipc_or_ws               = ""
+submission_mode             = "shadow"
+lending_markets              = ["aave_v3"]
+flash_priority                = ["aave_v3"]
+swap_venues                   = ["uniswap_v3", "quickswap", "curve"]
+hf_gate.kind                  = "flat"
+hf_gate.threshold             = 1.03
+min_liquidation_profit_usd    = 50.0
+liquidation_swap_haircut      = 0.02              # verify vs. current MATIC/POL
+                                                  # DEX depth — flagged thinner
+                                                  # in the source spec
+liquidation_safety_factor     = 0.9
+bootstrap_from_block          = 0
+native_price_fallback_usd     = 0.5
+circuit_breaker_threshold     = 25
+
+[chains.addresses]
+aave_addresses_provider = ""
+
+# ─────────────────────────────────────────────────────────────────────────
+[[chains]]
+id                          = "avalanche"
+chain_id                    = 43114
+rpc_ipc_or_ws               = ""
+submission_mode             = "shadow"
+lending_markets              = ["aave_v3"]
+flash_priority                = ["aave_v3"]
+swap_venues                   = ["trader_joe", "uniswap_v3", "curve"]
+hf_gate.kind                  = "flat"
+hf_gate.threshold             = 1.03
+min_liquidation_profit_usd    = 50.0
+liquidation_swap_haircut      = 0.018
+liquidation_safety_factor     = 0.9
+bootstrap_from_block          = 0
+native_price_fallback_usd     = 25.0
+circuit_breaker_threshold     = 25
+
+[chains.addresses]
+aave_addresses_provider = ""
+
+# ─────────────────────────────────────────────────────────────────────────
+[[chains]]
+id                          = "bnb"
+chain_id                    = 56
+rpc_ipc_or_ws               = ""
+submission_mode             = "shadow"
+lending_markets              = ["aave_v3"]
+flash_priority                = ["aave_v3"]
+swap_venues                   = ["pancakeswap_v3"]
+hf_gate.kind                  = "flat"
+hf_gate.threshold             = 1.03
+min_liquidation_profit_usd    = 50.0
+liquidation_swap_haircut      = 0.018
+liquidation_safety_factor     = 0.9
+bootstrap_from_block          = 0
+native_price_fallback_usd     = 500.0
+circuit_breaker_threshold     = 25
+
+[chains.addresses]
+aave_addresses_provider = ""
+
+# ─────────────────────────────────────────────────────────────────────────
+[[chains]]
+id                          = "gnosis"
+chain_id                    = 100
+rpc_ipc_or_ws               = ""
+submission_mode             = "shadow"
+lending_markets              = ["aave_v3"]
+flash_priority                = ["aave_v3", "balancer_v2"]
+swap_venues                   = ["curve", "balancer"]
+hf_gate.kind                  = "flat"
+hf_gate.threshold             = 1.03
+min_liquidation_profit_usd    = 30.0              # lower floor: smaller, more
+                                                  # stable/RWA-collateral-heavy
+                                                  # deployment per source spec
+liquidation_swap_haircut      = 0.015
+liquidation_safety_factor     = 0.9
+bootstrap_from_block          = 0
+native_price_fallback_usd     = 1.0                # xDAI ~ $1
+circuit_breaker_threshold     = 25
+
+[chains.addresses]
+aave_addresses_provider = ""
+balancer_vault           = ""
+
+# ─────────────────────────────────────────────────────────────────────────
+[[chains]]
+id                          = "plasma"
+chain_id                    = 0                   # SET before deploy — verify
+                                                  # against live Plasma chain docs
+rpc_ipc_or_ws               = ""
+submission_mode             = "shadow"           # stays shadow until
+                                                  # 09_CHAIN_PLASMA.md's checklist clears
+lending_markets              = ["aave_v3"]
+flash_priority                = ["aave_v3"]
+swap_venues                   = []                # UNSET — see 09_CHAIN_PLASMA.md,
+                                                  # DEX venue/depth not independently
+                                                  # confirmed this pass
+hf_gate.kind                  = "flat"
+hf_gate.threshold             = 1.03
+min_liquidation_profit_usd    = 50.0
+liquidation_swap_haircut      = 0.025             # conservative default for an
+                                                  # unverified venue set — tighten
+                                                  # once real depth is measured
+liquidation_safety_factor     = 0.85
+bootstrap_from_block          = 0
+native_price_fallback_usd     = 1.0                # stablecoin-focused chain
+circuit_breaker_threshold     = 15
+
+[chains.addresses]
+aave_addresses_provider = ""
