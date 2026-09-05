@@ -9,7 +9,11 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::chains::{LendingMarketAdapter, OracleKind, SwapRoute};
+use crate::shared::addresses::ethereum;
 use crate::shared::position_indexer::BorrowPosition;
+
+// TODO(GAP): Spark SparkLend Pool proxy address is NOT SOURCED (05_PROTOCOLS_AND_ADDRESSES.md §5.3, 12_RULES.md §12.5)
+pub const SPARK_POOL_PROXY: &str = ethereum::SPARK_POOL_PROXY;
 
 pub struct SparkAdapter {
     pub addresses_provider: Address,

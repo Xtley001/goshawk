@@ -11,7 +11,15 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::chains::{LendingMarketAdapter, OracleKind, SwapRoute};
+use crate::shared::addresses::ethereum;
 use crate::shared::position_indexer::BorrowPosition;
+
+// Sourced addresses from 05_PROTOCOLS_AND_ADDRESSES.md §5.1
+pub const AAVE_V3_POOL_PROXY:         &str = ethereum::AAVE_V3_POOL_PROXY;
+pub const AAVE_V3_PRICE_ORACLE:       &str = ethereum::AAVE_V3_PRICE_ORACLE;
+pub const AAVE_V3_WBTC_UNDERLYING:    &str = ethereum::AAVE_V3_WBTC_UNDERLYING;
+pub const AAVE_V3_AARBWTC:            &str = ethereum::AAVE_V3_AARBWTC;
+pub const AAVE_V3_VARIABLE_DEBT:      &str = ethereum::AAVE_V3_VARIABLE_DEBT;
 
 pub struct EthereumAaveV3Adapter {
     pub addresses_provider:   Address,
@@ -64,7 +72,8 @@ impl EthereumAaveV3Adapter {
 
 impl Default for EthereumAaveV3Adapter {
     fn default() -> Self {
-        Self::new(Address::zero(), Address::zero())
+        let pool: Address = AAVE_V3_POOL_PROXY.parse().unwrap_or_default();
+        Self::new(pool, pool)
     }
 }
 
