@@ -21,7 +21,7 @@ use tokio::sync::RwLock;
 
 use config::Config;
 use shared::{
-    addresses::base,
+    addresses::ethereum,
     flash_loan::FlashLoanRouter,
     gas_oracle::GasOracle,
     mempool_monitor::MempoolMonitor,
@@ -61,7 +61,7 @@ async fn main() -> Result<()> {
 
     tracing::info!("========================================");
     tracing::info!("Corvus Liquidation Engine v1.1 starting");
-    tracing::info!("Chain: Base Mainnet (8453)");
+    tracing::info!("Chain: Ethereum Mainnet (1)");
     tracing::info!("Mode: Liquidation Only");
     tracing::info!("========================================");
 
@@ -70,12 +70,12 @@ async fn main() -> Result<()> {
 
     // Boot-time oracle gate enforcement (03_ADAPTER_ARCHITECTURE.md)
     let mut market_registry = chains::LendingMarketRegistry::new();
-    let aave_addr: Address = cfg.get_chain("base")
-        .and_then(|c| c.get_address("aave_addresses_provider"))
+    let aave_addr: Address = cfg.get_chain("ethereum")
+        .and_then(|c| c.get_address("aave_v3_pool_proxy"))
         .unwrap_or_default()
         .parse()
         .unwrap_or_default();
-    let morpho_addr: Address = cfg.get_chain("base")
+    let morpho_addr: Address = cfg.get_chain("ethereum")
         .and_then(|c| c.get_address("morpho_blue"))
         .unwrap_or_default()
         .parse()
@@ -112,16 +112,16 @@ async fn main() -> Result<()> {
         breakers.insert(ch.id.clone(), Arc::new(chains::ChainBreaker::new(ch.circuit_breaker_threshold)));
     }
 
-    let base_cfg = cfg.get_chain("base").expect("base chain config must exist in default.toml");
-    let ipc_path = &base_cfg.rpc_ipc_or_ws;
-    let chain_id = base_cfg.chain_id;
-    let eth_price_fallback = base_cfg.native_price_fallback_usd;
-    let aave_provider_addr: Address = base_cfg
-        .get_address("aave_addresses_provider")
+    let eth_cfg = cfg.get_chain("ethereum").expect("ethereum chain config must exist in default.toml");
+    let ipc_path = &eth_cfg.rpc_ipc_or_ws;
+    let chain_id = eth_cfg.chain_id;
+    let eth_price_fallback = eth_cfg.native_price_fallback_usd;
+    let aave_provider_addr: Address = eth_cfg
+        .get_address("aave_v3_pool_proxy")
         .unwrap_or_default()
         .parse()?;
     let executor_env = std::env::var("CORVUS_FLASH_EXECUTOR_ADDRESS").unwrap_or_default();
-    let flash_executor_str = base_cfg
+    let flash_executor_str = eth_cfg
         .get_address("flash_executor_address")
         .filter(|s| !s.is_empty())
         .unwrap_or(if executor_env.is_empty() {
@@ -130,7 +130,7 @@ async fn main() -> Result<()> {
             &executor_env
         });
     let flash_executor_addr: Address = flash_executor_str.parse()?;
-    let genesis = base_cfg.bootstrap_from_block;
+    let genesis = eth_cfg.bootstrap_from_block;
 
     tracing::info!("Connecting to IPC at {}...", ipc_path);
     let provider_blocks = Arc::new(
@@ -303,7 +303,7 @@ async fn main() -> Result<()> {
                     }
                 }
 
-                let eth_oracle: Address = base::CHAINLINK_ETH_USD.parse()
+                let eth_oracle: Address = ethereum::CHAINLINK_ETH_USD.parse()
                     .expect("CHAINLINK_ETH_USD constant is malformed — fix addresses.rs");
                 let eth_price = mempool_mon.current_oracle_prices()
                     .get(&eth_oracle).map(|p| *p)
@@ -318,17 +318,17 @@ async fn main() -> Result<()> {
                 let mm3   = mempool_mon.clone();
                 let ep3   = eth_price;
                 let tg3   = telegram.clone();
-                let base_breaker = breakers.get("base").cloned().unwrap_or_else(|| Arc::new(chains::ChainBreaker::new(25)));
+                let eth_breaker = breakers.get("ethereum").cloned().unwrap_or_else(|| Arc::new(chains::ChainBreaker::new(10)));
 
                 let s3 = tokio::spawn(async move {
-                    if chain_breaker_tripped_alert(&base_breaker, "base", &tg3).await { return; }
+                    if chain_breaker_tripped_alert(&eth_breaker, "ethereum", &tg3).await { return; }
                     let eff_gas = sim3.gas_oracle().effective_gas_price_wei();
                     if let Err(e) = strategies::liquidation::run(pi3, mm3, sim3, fl3, sub3, cfg3, ep3).await {
                         let revert_cost_usd = 250_000.0 * eff_gas / 1e18 * ep3;
-                        base_breaker.record_revert_with_cost(revert_cost_usd);
+                        eth_breaker.record_revert_with_cost(revert_cost_usd);
                         tracing::debug!("Liquidation error: {}", e);
                     } else {
-                        base_breaker.record_success();
+                        eth_breaker.record_success();
                     }
                 });
 

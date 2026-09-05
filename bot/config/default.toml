@@ -1,4 +1,4 @@
-# Corvus — global config
+# Goshawk — global config
 cold_wallet             = ""
 telegram_bot_token      = ""
 telegram_chat_id        = 0
@@ -13,240 +13,34 @@ min_profit_slippage_bps = 8000
 
 # ─────────────────────────────────────────────────────────────────────────
 [[chains]]
-id                          = "hyperevm"
-chain_id                    = 999
-rpc_ipc_or_ws               = ""
-submission_mode             = "shadow"          # HyperLend adapter is a fresh
-                                                  # port — earns direct_sequencer
-                                                  # only after 12_TEST_AND_ROLLOUT.md's bar clears
-lending_markets              = ["hyperlend"]
-flash_priority                = ["hyperlend_native"]
-swap_venues                   = ["hyperswap_v2"]
-hf_gate.kind                  = "staged"
-hf_gate.presimulate           = 1.10
-hf_gate.submit                = 1.05
-hf_gate.liquidatable          = 1.00
-min_liquidation_profit_usd    = 25.0             # tune from shadow-mode data
-liquidation_swap_haircut      = 0.018
-liquidation_safety_factor     = 0.9
-bootstrap_from_block          = 0
-native_price_fallback_usd     = 25.0             # HYPE fallback — verify against live
-circuit_breaker_threshold     = 25
-
-[chains.addresses]
-hyperlend_pool = ""
-
-# ─────────────────────────────────────────────────────────────────────────
-[[chains]]
-id                          = "base"
-chain_id                    = 8453
-rpc_ipc_or_ws               = "/tmp/base-geth.ipc"
-submission_mode             = { private = { provider = { mev_protected_rpc = { endpoint = "https://base-mainnet.g.alchemy.com/v2/mev-protected" } } } }
-lending_markets              = ["aave_v3", "morpho_blue"]
-flash_priority                = ["balancer_v3", "balancer_v2", "morpho_blue", "aave_v3"]
-swap_venues                   = ["uniswap_v3", "aerodrome"]
-hf_gate.kind                  = "flat"
-hf_gate.threshold             = 1.03
-min_liquidation_profit_usd    = 50.0
-liquidation_swap_haircut      = 0.018
-liquidation_safety_factor     = 0.9
-bootstrap_from_block          = 2_100_000
-native_price_fallback_usd     = 2500.0
-circuit_breaker_threshold     = 25
-volatility_window_blocks      = 50
-volatility_scale              = 1.5
-max_hf_widening               = 0.05
-opportunity_cost_usd          = 15.0
-
-[chains.addresses]
-balancer_vault           = "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
-morpho_blue               = "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb"
-aave_addresses_provider   = "0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D"
-aerodrome_factory         = "0x420DD381b31aEf6683db6B902084cB0FFECe40Da"
-uniswap_v3_factory        = "0x33128a8fC17869897dcE68Ed026d694621f6FDfD"
-
-# ─────────────────────────────────────────────────────────────────────────
-[[chains]]
-id                          = "arbitrum"
-chain_id                    = 42161
-rpc_ipc_or_ws               = ""
-submission_mode             = "shadow"
-lending_markets              = ["aave_v3"]
-flash_priority                = ["aave_v3"]
-swap_venues                   = ["curve", "uniswap_v3"]
-hf_gate.kind                  = "flat"
-hf_gate.threshold             = 1.03
-min_liquidation_profit_usd    = 75.0
-liquidation_swap_haircut      = 0.018
-liquidation_safety_factor     = 0.9
-bootstrap_from_block          = 0
-native_price_fallback_usd     = 2500.0
-circuit_breaker_threshold     = 25
-
-[chains.addresses]
-aave_addresses_provider = ""
-
-# ─────────────────────────────────────────────────────────────────────────
-[[chains]]
 id                          = "ethereum"
 chain_id                    = 1
 rpc_ipc_or_ws               = ""
-submission_mode             = "shadow"           # private_builder only after
-                                                  # relay integration is live-tested
-lending_markets              = ["aave_v3", "spark", "morpho_blue"]
-flash_priority                = ["balancer_v2", "morpho_blue", "aave_v3"]
-swap_venues                   = ["curve", "uniswap_v3", "balancer"]
+submission_mode             = "shadow"   # private_builder only after 09_SUBMISSION_AND_SIMULATION.md's relay integration is live-tested
+lending_markets              = ["aave_v3_ethereum", "spark", "morpho_blue", "fluid", "compound_v3", "euler_v2"]
+flash_priority                = ["morpho_blue", "balancer_v2", "spark_dss_flash", "aave_v3", "uniswap_v3_flash"]
+swap_venues                   = ["uniswap_v3", "curve", "balancer"]
 hf_gate.kind                  = "flat"
 hf_gate.threshold             = 1.03
-min_liquidation_profit_usd    = 750.0            # scale/tail-event gate — do
-                                                  # not launch at Base's floor
+min_liquidation_profit_usd    = 750.0     # unchanged from Corvus's Ethereum floor — see 10_ECONOMICS_AND_RISK.md
 liquidation_swap_haircut      = 0.02
 liquidation_safety_factor     = 0.9
 bootstrap_from_block          = 0
 native_price_fallback_usd     = 2500.0
-circuit_breaker_threshold     = 10                # tighter than the $50-floor
-                                                  # chains — a mainnet revert
-                                                  # is materially more expensive
+circuit_breaker_threshold     = 10        # tighter than any $50-floor L2 config — a mainnet revert costs materially more
 
 [chains.addresses]
-balancer_vault           = ""
-morpho_blue               = ""
-aave_addresses_provider   = ""
-spark_addresses_provider  = ""
-
-# ─────────────────────────────────────────────────────────────────────────
-[[chains]]
-id                          = "optimism"
-chain_id                    = 10
-rpc_ipc_or_ws               = ""
-submission_mode             = "shadow"
-lending_markets              = ["aave_v3"]
-flash_priority                = ["aave_v3"]
-swap_venues                   = ["velodrome", "uniswap_v3"]
-hf_gate.kind                  = "flat"
-hf_gate.threshold             = 1.03
-min_liquidation_profit_usd    = 50.0
-liquidation_swap_haircut      = 0.018
-liquidation_safety_factor     = 0.9
-bootstrap_from_block          = 0
-native_price_fallback_usd     = 2500.0
-circuit_breaker_threshold     = 25
-
-[chains.addresses]
-aave_addresses_provider = ""
-
-# ─────────────────────────────────────────────────────────────────────────
-[[chains]]
-id                          = "polygon"
-chain_id                    = 137
-rpc_ipc_or_ws               = ""
-submission_mode             = "shadow"
-lending_markets              = ["aave_v3"]
-flash_priority                = ["aave_v3"]
-swap_venues                   = ["uniswap_v3", "quickswap", "curve"]
-hf_gate.kind                  = "flat"
-hf_gate.threshold             = 1.03
-min_liquidation_profit_usd    = 50.0
-liquidation_swap_haircut      = 0.02              # verify vs. current MATIC/POL
-                                                  # DEX depth — flagged thinner
-                                                  # in the source spec
-liquidation_safety_factor     = 0.9
-bootstrap_from_block          = 0
-native_price_fallback_usd     = 0.5
-circuit_breaker_threshold     = 25
-
-[chains.addresses]
-aave_addresses_provider = ""
-
-# ─────────────────────────────────────────────────────────────────────────
-[[chains]]
-id                          = "avalanche"
-chain_id                    = 43114
-rpc_ipc_or_ws               = ""
-submission_mode             = "shadow"
-lending_markets              = ["aave_v3"]
-flash_priority                = ["aave_v3"]
-swap_venues                   = ["trader_joe", "uniswap_v3", "curve"]
-hf_gate.kind                  = "flat"
-hf_gate.threshold             = 1.03
-min_liquidation_profit_usd    = 50.0
-liquidation_swap_haircut      = 0.018
-liquidation_safety_factor     = 0.9
-bootstrap_from_block          = 0
-native_price_fallback_usd     = 25.0
-circuit_breaker_threshold     = 25
-
-[chains.addresses]
-aave_addresses_provider = ""
-
-# ─────────────────────────────────────────────────────────────────────────
-[[chains]]
-id                          = "bnb"
-chain_id                    = 56
-rpc_ipc_or_ws               = ""
-submission_mode             = "shadow"
-lending_markets              = ["aave_v3"]
-flash_priority                = ["aave_v3"]
-swap_venues                   = ["pancakeswap_v3"]
-hf_gate.kind                  = "flat"
-hf_gate.threshold             = 1.03
-min_liquidation_profit_usd    = 50.0
-liquidation_swap_haircut      = 0.018
-liquidation_safety_factor     = 0.9
-bootstrap_from_block          = 0
-native_price_fallback_usd     = 500.0
-circuit_breaker_threshold     = 25
-
-[chains.addresses]
-aave_addresses_provider = ""
-
-# ─────────────────────────────────────────────────────────────────────────
-[[chains]]
-id                          = "gnosis"
-chain_id                    = 100
-rpc_ipc_or_ws               = ""
-submission_mode             = "shadow"
-lending_markets              = ["aave_v3"]
-flash_priority                = ["aave_v3", "balancer_v2"]
-swap_venues                   = ["curve", "balancer"]
-hf_gate.kind                  = "flat"
-hf_gate.threshold             = 1.03
-min_liquidation_profit_usd    = 30.0              # lower floor: smaller, more
-                                                  # stable/RWA-collateral-heavy
-                                                  # deployment per source spec
-liquidation_swap_haircut      = 0.015
-liquidation_safety_factor     = 0.9
-bootstrap_from_block          = 0
-native_price_fallback_usd     = 1.0                # xDAI ~ $1
-circuit_breaker_threshold     = 25
-
-[chains.addresses]
-aave_addresses_provider = ""
-balancer_vault           = ""
-
-# ─────────────────────────────────────────────────────────────────────────
-[[chains]]
-id                          = "plasma"
-chain_id                    = 0                   # SET before deploy — verify
-                                                  # against live Plasma chain docs
-rpc_ipc_or_ws               = ""
-submission_mode             = "shadow"           # stays shadow until
-                                                  # 09_CHAIN_PLASMA.md's checklist clears
-lending_markets              = ["aave_v3"]
-flash_priority                = ["aave_v3"]
-swap_venues                   = []                # UNSET — see 09_CHAIN_PLASMA.md,
-                                                  # DEX venue/depth not independently
-                                                  # confirmed this pass
-hf_gate.kind                  = "flat"
-hf_gate.threshold             = 1.03
-min_liquidation_profit_usd    = 50.0
-liquidation_swap_haircut      = 0.025             # conservative default for an
-                                                  # unverified venue set — tighten
-                                                  # once real depth is measured
-liquidation_safety_factor     = 0.85
-bootstrap_from_block          = 0
-native_price_fallback_usd     = 1.0                # stablecoin-focused chain
-circuit_breaker_threshold     = 15
-
-[chains.addresses]
-aave_addresses_provider = ""
+# Every value below is sourced from 05_PROTOCOLS_AND_ADDRESSES.md,
+# 06_ORACLES.md, and 07_FLASH_LOANS_AND_DEX.md. Fields marked GAP must stay
+# empty until sourced — do not fill with a guessed value (12_RULES.md §12.5).
+morpho_blue                       = "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb"
+balancer_vault                    = "0xBA12222222228d8Ba53be47888D16304ca09907c"
+spark_dss_flash                   = "0x60744434d6339a6B27d73d9Eda62b6F66a0a04FA"
+aave_v3_pool_proxy                = "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
+aave_v3_price_oracle              = "0xb56c2F0B653B2e0b10C9b928C8580Ac5Df02C7C7"
+spark_pool_proxy                  = ""   # ⚠️ GAP — NOT SOURCED, see 05_PROTOCOLS_AND_ADDRESSES.md §5.3
+fluid_liquidity_layer             = ""   # ⚠️ GAP — NOT SOURCED, see §5.4
+compound_v3_comet_proxy           = ""   # ⚠️ GAP — NOT SOURCED, see §5.5
+euler_v2_vault_controller         = ""   # ⚠️ GAP — NOT SOURCED, see §5.6
+uniswap_v3_factory                = ""   # ⚠️ GAP — NOT SOURCED, see 07_FLASH_LOANS_AND_DEX.md §7.4
+curve_registry                    = ""   # ⚠️ GAP — NOT SOURCED, see 07_FLASH_LOANS_AND_DEX.md §7.4

@@ -163,8 +163,12 @@ impl Config {
         self.chains.iter().find(|c| c.id == id)
     }
 
+    pub fn ethereum_chain(&self) -> Option<&ChainConfig> {
+        self.get_chain("ethereum")
+    }
+
     pub fn base_chain(&self) -> Option<&ChainConfig> {
-        self.get_chain("base")
+        self.get_chain("ethereum")
     }
 
     pub fn load() -> Result<Self> {
@@ -186,12 +190,12 @@ mod tests {
         let cfg = Config::load();
         assert!(cfg.is_ok(), "Config::load() must successfully parse default.toml: {:?}", cfg.err());
         let c = cfg.unwrap();
-        assert_eq!(c.chains.len(), 10, "Default configuration must define exactly 10 chains");
+        assert_eq!(c.chains.len(), 1, "Default configuration must define exactly 1 chain (Ethereum)");
         
         let chain_ids: Vec<&str> = c.chains.iter().map(|ch| ch.id.as_str()).collect();
         assert_eq!(
             chain_ids,
-            vec!["hyperevm", "base", "arbitrum", "ethereum", "optimism", "polygon", "avalanche", "bnb", "gnosis", "plasma"]
+            vec!["ethereum"]
         );
     }
 
