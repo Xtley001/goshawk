@@ -1,8 +1,12 @@
 //! Ethereum (Chain ID 1) adapter module.
 //! 08_CHAIN_ETHEREUM.md
 
-pub mod spark;
 pub mod aave_v3;
+pub mod spark;
+pub mod morpho_blue;
+pub mod fluid;
+pub mod compound_v3;
+pub mod euler_v2;
 
 #[cfg(test)]
 mod tests {

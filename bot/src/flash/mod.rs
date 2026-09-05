@@ -6,11 +6,10 @@ use async_trait::async_trait;
 use ethers::types::{Address, Bytes, U256};
 use std::collections::HashMap;
 
-pub mod balancer_v2;
-pub mod balancer_v3;
-pub mod aave_v3;
 pub mod morpho_blue;
-pub mod hyperlend_native;
+pub mod balancer_v2;
+pub mod spark_dss_flash;
+pub mod aave_v3;
 
 #[async_trait]
 pub trait FlashLoanAdapter: Send + Sync {

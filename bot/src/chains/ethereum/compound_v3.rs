@@ -1,0 +1,70 @@
+//! Compound V3 LendingMarketAdapter for Ethereum mainnet.
+//! 03_ADAPTER_ARCHITECTURE.md §3.4, 05_PROTOCOLS_AND_ADDRESSES.md §5.5
+
+use anyhow::Result;
+use async_trait::async_trait;
+use ethers::types::{Address, Bytes, U256};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+use crate::chains::{LendingMarketAdapter, OracleKind, SwapRoute};
+use crate::shared::position_indexer::BorrowPosition;
+
+// TODO(GAP): Compound V3 Comet proxy address is NOT SOURCED (see 12_RULES.md §12.5)
+pub const COMPOUND_V3_COMET: &str = "";
+
+pub struct CompoundV3Adapter {
+    pub comet_proxy: Address,
+    pub positions:   Arc<RwLock<Vec<BorrowPosition>>>,
+}
+
+impl CompoundV3Adapter {
+    pub fn new(comet_proxy: Address) -> Self {
+        Self {
+            comet_proxy,
+            positions: Arc::new(RwLock::new(Vec::new())),
+        }
+    }
+}
+
+impl Default for CompoundV3Adapter {
+    fn default() -> Self {
+        Self {
+            comet_proxy: Address::zero(),
+            positions:   Arc::new(RwLock::new(Vec::new())),
+        }
+    }
+}
+
+#[async_trait]
+impl LendingMarketAdapter for CompoundV3Adapter {
+    fn id(&self) -> &'static str {
+        "compound_v3"
+    }
+
+    fn oracle_kind(&self) -> OracleKind {
+        OracleKind::Chainlink
+    }
+
+    async fn refresh_positions(&self) -> Result<()> {
+        Ok(())
+    }
+
+    async fn positions_below_hf(&self, threshold: f64) -> Vec<BorrowPosition> {
+        let lock = self.positions.read().await;
+        lock.iter()
+            .filter(|p| p.health_factor < threshold)
+            .cloned()
+            .collect()
+    }
+
+    async fn build_liquidation_calldata(
+        &self,
+        _pos: &BorrowPosition,
+        _route: SwapRoute,
+        _min_profit: U256,
+    ) -> Result<Bytes> {
+        // Real implementation in Step 5
+        Ok(Bytes::new())
+    }
+}

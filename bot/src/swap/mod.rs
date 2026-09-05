@@ -8,10 +8,6 @@ use std::collections::HashMap;
 
 pub mod uniswap_v3;
 pub mod curve;
-pub mod velodrome;
-pub mod pancakeswap_v3;
-pub mod quickswap;
-pub mod trader_joe;
 pub mod balancer;
 
 #[async_trait]
@@ -57,15 +53,11 @@ mod tests {
         let mut reg = SwapVenueRegistry::new();
         reg.register(Box::new(uniswap_v3::GenericUniswapV3Adapter::default()));
         reg.register(Box::new(curve::CurveAdapter::default()));
-        reg.register(Box::new(velodrome::VelodromeAdapter::default()));
-        reg.register(Box::new(pancakeswap_v3::PancakeSwapV3Adapter::default()));
-        reg.register(Box::new(quickswap::QuickSwapAdapter::default()));
-        reg.register(Box::new(trader_joe::TraderJoeAdapter::default()));
         reg.register(Box::new(balancer::BalancerSwapAdapter::default()));
 
-        assert_eq!(reg.len(), 7);
+        assert_eq!(reg.len(), 3);
 
-        let venues = ["uniswap_v3", "curve", "velodrome", "pancakeswap_v3", "quickswap", "trader_joe", "balancer"];
+        let venues = ["uniswap_v3", "curve", "balancer"];
         for v in venues {
             let adapter = reg.get(v).unwrap_or_else(|| panic!("Venue {} missing", v));
             assert_eq!(adapter.id(), v);

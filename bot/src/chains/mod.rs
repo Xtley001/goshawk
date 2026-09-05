@@ -11,11 +11,7 @@ use std::sync::Arc;
 
 use crate::shared::position_indexer::BorrowPosition;
 
-pub mod hyperevm;
-pub mod base;
-pub mod aave_v3_standard;
 pub mod ethereum;
-pub mod plasma;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OracleKind {

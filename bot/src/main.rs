@@ -82,11 +82,11 @@ async fn main() -> Result<()> {
         .unwrap_or_default();
     chains::register_lending_market(
         &mut market_registry,
-        Box::new(chains::base::aave_v3::BaseAaveV3Adapter::new(aave_addr, None)),
+        Box::new(chains::ethereum::aave_v3::EthereumAaveV3Adapter::new(aave_addr, Address::zero())),
     )?;
     chains::register_lending_market(
         &mut market_registry,
-        Box::new(chains::base::morpho_blue::BaseMorphoBlueAdapter::new(morpho_addr, None)),
+        Box::new(chains::ethereum::morpho_blue::MorphoBlueAdapter::new(morpho_addr)),
     )?;
     tracing::info!("Registered {} lending markets after SpotAmm validation", market_registry.len());
 
